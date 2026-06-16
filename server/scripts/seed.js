@@ -22,7 +22,7 @@ const seedDatabase = async () => {
     const admin = new User({
       name: 'Admin User',
       email: 'admin@ems.com',
-      password: 'password123',
+      password: 'admin123',
       role: 'Admin',
       department: 'Management',
       points: 0
