@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   Home, User, Trophy, Users, BarChart3, 
   UserPlus, ListTodo, Settings, LogOut,
-  FileText, UserCog
+  FileText, UserCog, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,13 +23,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { to: '/team', icon: Users, label: 'My Team' },
     { to: '/employees', icon: UserCog, label: 'All Employees' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
-    { to: '/stats', icon: BarChart3, label: 'My Stats' }
+    { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { to: '/stats', icon: TrendingUp, label: 'My Stats' }
   ];
 
   const adminLinks = [
     { to: '/', icon: FileText, label: 'Overview' },
     { to: '/employees', icon: UserCog, label: 'Employees' },
     { to: '/create-employee', icon: UserPlus, label: 'Create Employee' },
+    { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/settings', icon: Settings, label: 'Settings' }
   ];

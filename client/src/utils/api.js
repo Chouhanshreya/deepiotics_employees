@@ -49,4 +49,13 @@ export const getTopPerformers = () => api.get('/analytics/top-performers');
 export const getPointsTimeline = (period) => api.get(`/analytics/points-timeline?period=${period}`);
 export const getUserStats = (id) => api.get(`/analytics/user-stats/${id || ''}`);
 
+// Admin
+export const getTLLeaderboard = () => api.get('/admin/leaderboard/tls');
+export const getBestPerformers = () => api.get('/admin/best-performers');
+export const declareBestEmployee = (userId) => api.post('/admin/best-employee', { userId });
+export const declareBestTL = (userId) => api.post('/admin/best-tl', { userId });
+export const resetMonth = () => api.post('/admin/reset-month');
+export const getArchives = () => api.get('/admin/archives');
+export const getArchiveById = (id) => api.get(`/admin/archives/${id}`);
+
 export default api;

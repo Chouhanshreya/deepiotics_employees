@@ -51,7 +51,23 @@ const userSchema = new mongoose.Schema({
   joinDate: {
     type: Date,
     default: Date.now
-  }
+  },
+  isBestEmployee: {
+    type: Boolean,
+    default: false
+  },
+  isBestTL: {
+    type: Boolean,
+    default: false
+  },
+  monthlyHistory: [
+    {
+      month: Number,
+      year: Number,
+      points: Number,
+      rank: Number
+    }
+  ]
 }, {
   timestamps: true
 });
