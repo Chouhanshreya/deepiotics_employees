@@ -219,12 +219,12 @@ exports.assignPoints = async (req, res) => {
     // Convert points to number and validate
     const pointsToAdd = parseInt(points, 10);
 
-    if (!pointsToAdd || isNaN(pointsToAdd) || pointsToAdd <= 0) {
-      return res.status(400).json({ message: 'Please provide valid points (positive number)' });
+    if (!pointsToAdd || isNaN(pointsToAdd) || pointsToAdd === 0) {
+      return res.status(400).json({ message: 'Please provide valid points (non-zero number)' });
     }
 
-    if (pointsToAdd > 1000) {
-      return res.status(400).json({ message: 'Cannot assign more than 1000 points at once' });
+    if (pointsToAdd > 1000 || pointsToAdd < -1000) {
+      return res.status(400).json({ message: 'Points must be between -1000 and +1000' });
     }
 
     const targetUser = await User.findById(req.params.id);
@@ -253,9 +253,9 @@ exports.assignPoints = async (req, res) => {
       return res.status(403).json({ message: 'Admin cannot assign points to another Admin' });
     }
 
-    // Update user points
+    // Update user points (don't let it go below 0)
     const currentPoints = parseInt(targetUser.points, 10) || 0;
-    targetUser.points = currentPoints + pointsToAdd;
+    targetUser.points = Math.max(0, currentPoints + pointsToAdd);
     await targetUser.save();
 
     console.log(`✅ ${req.user.name} (${req.user.role}) assigned ${pointsToAdd} pts [${category || 'General'}] to ${targetUser.name}. Total: ${targetUser.points}`);

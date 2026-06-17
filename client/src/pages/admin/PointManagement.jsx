@@ -327,7 +327,9 @@ const PointManagement = () => {
                     <span className="text-xl">{categoryIcon(entry.category)}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-amber-600">+{entry.points} pts</span>
+                        <span className={`font-bold ${entry.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                          {entry.points > 0 ? '+' : ''}{entry.points} pts
+                        </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColor(entry.category)}`}>
                           {entry.category || 'General'}
                         </span>

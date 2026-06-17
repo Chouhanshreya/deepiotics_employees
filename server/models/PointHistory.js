@@ -12,7 +12,40 @@ const pointHistorySchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['General', 'Performance', 'Teamwork', 'Innovation', 'Leadership', 'Punctuality', 'Extra Mile'],
+    enum: [
+      // Employee Positive
+      'Quality of Work',
+      'Timely Delivery',
+      'Client Feedback',
+      'Communication & Reporting',
+      'Complaint History',
+      // Employee Negative
+      'Client Complaint',
+      'Delayed Delivery',
+      'Poor Communication',
+      'No Updates Provided',
+      'Incomplete Work',
+      'Repeated Mistakes',
+      'Client Comments Ignored',
+      'Client Escalation',
+      // TL Positive
+      'Team Delivery Performance',
+      'Team Quality Performance',
+      'Client Satisfaction',
+      'Team Management & Reporting',
+      'Low Team Complaint Rate',
+      // TL Negative (same labels as employee negatives but TL-context)
+      'Team Client Complaint',
+      'Team Delayed Delivery',
+      'Team Poor Communication',
+      'Team No Updates Provided',
+      'Team Incomplete Work',
+      'Team Repeated Mistakes',
+      'Team Client Comments Ignored',
+      'Team Client Escalation',
+      // General
+      'General'
+    ],
     default: 'General'
   },
   note: {

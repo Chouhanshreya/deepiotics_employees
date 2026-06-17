@@ -93,8 +93,7 @@ const ProfileDrawer = ({ userId, onClose }) => {
               <span className="text-4xl mb-3">😕</span>
               <p className="text-sm font-medium text-gray-500">{error}</p>
             </div>
-          ) : profile && currentUser?.role === 'Employee' && profile.role !== 'Employee' ? (
-            /* Employee cannot view TL/Admin full profile */
+          ) : profile && currentUser?.role === 'Employee' && profile.role !== 'Employee' ? (            /* Employee cannot view TL/Admin full profile */
             <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-2xl font-black mb-4 shadow-lg">
                 {profile.name?.substring(0, 2).toUpperCase()}
@@ -177,7 +176,7 @@ const ProfileDrawer = ({ userId, onClose }) => {
                   <Clock size={18} className="text-gray-400" />
                   <h4 className="font-bold text-gray-700 text-base">Point History</h4>
                   <span className="ml-auto text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full font-medium">
-                    {history.length} entries · {history.reduce((s, h) => s + h.points, 0)} pts total
+                    {history.length} entries · {profile.points} pts current
                   </span>
                 </div>
 
@@ -201,10 +200,17 @@ const ProfileDrawer = ({ userId, onClose }) => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-black text-amber-600 text-xl">+{entry.points} pts</span>
-                              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${categoryColor(entry.category)}`}>
+                              <span className={`font-black text-xl ${entry.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                                {entry.points > 0 ? '+' : ''}{entry.points} pts
+                              </span>
+                              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${entry.points < 0 ? 'bg-red-100 text-red-700' : categoryColor(entry.category)}`}>
                                 {entry.category || 'General'}
                               </span>
+                              {entry.points < 0 && (
+                                <span className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-medium border border-red-200">
+                                  Deduction
+                                </span>
+                              )}
                             </div>
                             <span className="text-xs text-gray-400 shrink-0">
                               {new Date(entry.createdAt).toLocaleDateString('en-IN', {

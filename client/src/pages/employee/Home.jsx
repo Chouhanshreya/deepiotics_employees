@@ -88,7 +88,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Best performer banner */}
+      {/* Best performer banner — Employee */}
       {isBestEmployee && (
         <div className="bg-gradient-to-r from-amber-400 to-yellow-300 rounded-2xl p-5 flex items-center gap-4 shadow-md">
           <span className="text-5xl">🏅</span>
@@ -96,6 +96,32 @@ const Home = () => {
             <p className="text-amber-900 font-black text-xl">You're the Best Employee of the Month!</p>
             <p className="text-amber-800 text-sm mt-0.5">Outstanding performance recognized by your team lead.</p>
           </div>
+        </div>
+      )}
+
+      {/* Congratulation banner — Best TL */}
+      {user?.isBestTL && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-500 rounded-2xl p-6 shadow-xl">
+          {/* decorative blobs */}
+          <div className="absolute -top-6 -right-6 w-32 h-32 bg-white/10 rounded-full" />
+          <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-white/10 rounded-full" />
+          <div className="relative z-10 flex items-center gap-5">
+            <span className="text-6xl drop-shadow-lg">👑</span>
+            <div>
+              <p className="text-purple-200 text-xs font-bold uppercase tracking-widest mb-1">🎉 Congratulations!</p>
+              <p className="text-white font-black text-2xl leading-tight">
+                You're the Best Team Lead of the Month!
+              </p>
+              <p className="text-purple-200 text-sm mt-2">
+                Your team's performance has been recognized as the best this month. Keep leading with excellence!
+              </p>
+            </div>
+          </div>
+          {/* Confetti dots */}
+          <div className="absolute top-3 right-16 w-2 h-2 bg-yellow-300 rounded-full opacity-80" />
+          <div className="absolute top-8 right-24 w-1.5 h-1.5 bg-pink-300 rounded-full opacity-70" />
+          <div className="absolute bottom-4 right-12 w-2 h-2 bg-teal-300 rounded-full opacity-80" />
+          <div className="absolute top-5 right-36 w-1 h-1 bg-white rounded-full opacity-60" />
         </div>
       )}
 
@@ -277,7 +303,9 @@ const Home = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xl font-black text-amber-600">+{entry.points} pts</span>
+                    <span className={`text-xl font-black ${entry.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                      {entry.points > 0 ? '+' : ''}{entry.points} pts
+                    </span>
                     <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${categoryColor(entry.category)}`}>
                       {entry.category || 'General'}
                     </span>

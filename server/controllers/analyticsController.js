@@ -7,40 +7,58 @@ const Task = require('../models/Task');
 // @access  Private (Admin, TL)
 exports.getOverview = async (req, res) => {
   try {
-    let query = {};
+    // Total counts
+    const totalEmployees = await User.countDocuments({ role: 'Employee' });
+    const totalTLs = await User.countDocuments({ role: 'TL' });
 
-    // If TL, show stats for all Employees and TLs (not Admins)
-    if (req.user.role === 'TL') {
-      query = { role: { $in: ['Employee', 'TL'] } };
-    }
+    // Total points distributed (sum of all point history)
+    const pointsAgg = await PointHistory.aggregate([
+      { $group: { _id: null, total: { $sum: '$points' } } }
+    ]);
+    const totalPoints = pointsAgg[0]?.total || 0;
 
-    // Total employees
-    const totalEmployees = await User.countDocuments({ 
-      ...query, 
-      role: 'Employee' 
-    });
-
-    // Total points distributed
-    const users = await User.find({ ...query, role: 'Employee' });
-    const totalPoints = users.reduce((sum, user) => sum + user.points, 0);
-
-    // Top performer
-    const topPerformer = await User.findOne({ ...query, role: 'Employee' })
+    // Top 5 performers
+    const top5 = await User.find({ role: { $in: ['Employee', 'TL'] } })
+      .select('-password')
       .sort('-points')
-      .select('-password');
+      .limit(5);
 
-    // Active streaks count (users with streak > 0)
-    const activeStreaks = await User.countDocuments({ 
-      ...query, 
-      role: 'Employee',
-      activeStreak: { $gt: 0 }
-    });
+    // Points by department
+    const deptAgg = await User.aggregate([
+      { $match: { role: { $in: ['Employee', 'TL'] } } },
+      { $group: { _id: '$department', totalPoints: { $sum: '$points' }, count: { $sum: 1 } } },
+      { $sort: { totalPoints: -1 } }
+    ]);
+
+    // Recent point assignments (last 5)
+    const recentPoints = await PointHistory.find()
+      .populate('employee', 'name department')
+      .populate('assignedBy', 'name role')
+      .sort('-createdAt')
+      .limit(5);
+
+    // Points this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const monthPointsAgg = await PointHistory.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $group: { _id: null, total: { $sum: '$points' } } }
+    ]);
+    const pointsThisMonth = monthPointsAgg[0]?.total || 0;
+
+    // Total point transactions
+    const totalTransactions = await PointHistory.countDocuments();
 
     res.json({
       totalEmployees,
+      totalTLs,
       totalPoints,
-      topPerformer,
-      activeStreaks
+      pointsThisMonth,
+      totalTransactions,
+      top5,
+      deptAgg,
+      recentPoints
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

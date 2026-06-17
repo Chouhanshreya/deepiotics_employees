@@ -14,7 +14,7 @@ const {
 const { protect, authorize } = require('../middleware/auth');
 
 router.get('/leaderboard', protect, getLeaderboard);
-router.get('/team', protect, authorize('Employee'), getTeamMembers);
+router.get('/team', protect, authorize('Employee', 'TL'), getTeamMembers);
 
 router.route('/')
   .get(protect, authorize('Admin', 'TL'), getAllUsers)

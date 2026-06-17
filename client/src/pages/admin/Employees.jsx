@@ -4,7 +4,8 @@ import { getAllUsers, deleteUser } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
-import { Edit2, Trash2, Search } from 'lucide-react';
+import ProfileDrawer from '../../components/ProfileDrawer';
+import { Edit2, Trash2, Search, Eye } from 'lucide-react';
 
 const Employees = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const Employees = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   useEffect(() => { fetchEmployees(); }, []);
 
@@ -125,10 +127,13 @@ const Employees = () => {
               {filteredEmployees.map((employee) => (
                 <tr key={employee._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3 cursor-pointer group"
+                      onClick={() => setSelectedUserId(employee._id)}
+                    >
                       <Avatar name={employee.name} size="sm" />
                       <div>
-                        <p className="font-semibold text-gray-800 flex items-center gap-1">
+                        <p className="font-semibold text-gray-800 flex items-center gap-1 group-hover:text-primary transition-colors">
                           {employee.name}
                           {employee.isBestEmployee && <span className="text-xs">🏅</span>}
                           {employee.isBestTL && <span className="text-xs">👑</span>}
@@ -160,6 +165,13 @@ const Employees = () => {
                       {isAdmin && (
                         <>
                           <button
+                            onClick={() => setSelectedUserId(employee._id)}
+                            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="View Profile"
+                          >
+                            <Eye size={17} />
+                          </button>
+                          <button
                             onClick={() => navigate(`/employees/${employee._id}/edit`)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit"
@@ -186,6 +198,14 @@ const Employees = () => {
           )}
         </div>
       </div>
+
+      {/* Profile Popup */}
+      {selectedUserId && (
+        <ProfileDrawer
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+        />
+      )}
     </div>
   );
 };
