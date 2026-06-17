@@ -26,6 +26,6 @@ router.route('/:id')
   .delete(protect, authorize('Admin'), deleteUser);
 
 router.post('/:id/points', protect, authorize('Admin', 'TL'), assignPoints);
-router.get('/:id/points/history', protect, authorize('Admin', 'TL'), getPointHistory);
+router.get('/:id/points/history', protect, getPointHistory);
 
 module.exports = router;

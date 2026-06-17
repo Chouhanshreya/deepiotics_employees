@@ -9,7 +9,16 @@ export default {
       colors: {
         primary: '#6366f1',
         secondary: '#8b5cf6',
-      }
+      },
+      keyframes: {
+        'slide-in': {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+      },
+      animation: {
+        'slide-in': 'slide-in 0.25s ease-out',
+      },
     },
   },
   plugins: [],

@@ -20,6 +20,7 @@ import CreateEmployee from './pages/admin/CreateEmployee';
 import EditEmployee from './pages/admin/EditEmployee';
 import Analytics from './pages/admin/Analytics';
 import Settings from './pages/admin/Settings';
+import PointManagement from './pages/admin/PointManagement';
 
 import SessionTest from './pages/SessionTest';
 
@@ -138,6 +139,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['Admin', 'TL']}>
                   <CreateEmployee />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/point-management"
+              element={
+                <ProtectedRoute allowedRoles={['Admin', 'TL']}>
+                  <PointManagement />
                 </ProtectedRoute>
               }
             />

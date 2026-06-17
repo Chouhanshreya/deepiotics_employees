@@ -42,15 +42,11 @@ exports.getUserById = async (req, res) => {
 
     // Check access permissions
     if (req.user.role === 'Employee') {
-      // Employees can only view their own profile or teammates
-      if (user._id.toString() !== req.user._id.toString() && 
-          user.teamLead?.toString() !== req.user.teamLead?.toString()) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
       // Employees cannot see TL or Admin profiles
       if (user.role === 'TL' || user.role === 'Admin') {
         return res.status(403).json({ message: 'Access denied' });
       }
+      // Employees can see any other Employee profile (for leaderboard)
     } else if (req.user.role === 'TL') {
       // TL can view Employees and other TLs, but not Admins
       if (user.role === 'Admin') {
@@ -164,12 +160,12 @@ exports.deleteUser = async (req, res) => {
 // @access  Private
 exports.getLeaderboard = async (req, res) => {
   try {
-    // Get all employees sorted by points
-    const users = await User.find({ role: 'Employee' })
+    // Return both Employees and TLs sorted by points (not Admins)
+    const users = await User.find({ role: { $in: ['Employee', 'TL'] } })
       .select('-password')
+      .populate('teamLead', 'name')
       .sort('-points');
 
-    // Add rank to each user
     const leaderboard = users.map((user, index) => ({
       ...user.toJSON(),
       rank: index + 1
@@ -218,7 +214,7 @@ exports.getTeamMembers = async (req, res) => {
 // @access  Private (Admin, TL)
 exports.assignPoints = async (req, res) => {
   try {
-    const { points, note } = req.body;
+    const { points, note, category } = req.body;
 
     // Convert points to number and validate
     const pointsToAdd = parseInt(points, 10);
@@ -227,38 +223,53 @@ exports.assignPoints = async (req, res) => {
       return res.status(400).json({ message: 'Please provide valid points (positive number)' });
     }
 
-    const user = await User.findById(req.params.id);
+    if (pointsToAdd > 1000) {
+      return res.status(400).json({ message: 'Cannot assign more than 1000 points at once' });
+    }
 
-    if (!user) {
+    const targetUser = await User.findById(req.params.id);
+
+    if (!targetUser) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // TL can only assign points to THEIR team members
+    // Block assigning points to yourself
+    if (req.user._id.toString() === targetUser._id.toString()) {
+      return res.status(403).json({ message: 'You cannot assign points to yourself' });
+    }
+
+    // TL restrictions: can only assign to their direct team employees, not to other TLs or Admins
     if (req.user.role === 'TL') {
-      // Check if the user is a member of this TL's team
-      if (!user.teamLead || user.teamLead.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ 
-          message: 'You can only assign points to your team members. This employee belongs to another team or has no team lead.' 
-        });
+      if (targetUser.role !== 'Employee') {
+        return res.status(403).json({ message: 'TL can only assign points to Employees, not to other TLs or Admins' });
+      }
+      if (!targetUser.teamLead || targetUser.teamLead.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'You can only assign points to employees in your own team' });
       }
     }
 
-    // Update user points - ensure both are numbers
-    const currentPoints = parseInt(user.points, 10) || 0;
-    user.points = currentPoints + pointsToAdd;
-    await user.save();
+    // Admin can assign to anyone except themselves (already blocked above) and other Admins
+    if (req.user.role === 'Admin' && targetUser.role === 'Admin') {
+      return res.status(403).json({ message: 'Admin cannot assign points to another Admin' });
+    }
 
-    console.log(`✅ ${req.user.name} (${req.user.role}) assigned ${pointsToAdd} points to ${user.name}. New total: ${user.points}`);
+    // Update user points
+    const currentPoints = parseInt(targetUser.points, 10) || 0;
+    targetUser.points = currentPoints + pointsToAdd;
+    await targetUser.save();
 
-    // Create point history
+    console.log(`✅ ${req.user.name} (${req.user.role}) assigned ${pointsToAdd} pts [${category || 'General'}] to ${targetUser.name}. Total: ${targetUser.points}`);
+
+    // Create point history with category
     await PointHistory.create({
-      employee: user._id,
+      employee: targetUser._id,
       points: pointsToAdd,
       note: note || '',
+      category: category || 'General',
       assignedBy: req.user._id
     });
 
-    const updatedUser = await User.findById(user._id)
+    const updatedUser = await User.findById(targetUser._id)
       .select('-password')
       .populate('teamLead', 'name email');
 
@@ -270,12 +281,17 @@ exports.assignPoints = async (req, res) => {
 
 // @desc    Get point history for user
 // @route   GET /api/users/:id/points/history
-// @access  Private (Admin, TL)
+// @access  Private
 exports.getPointHistory = async (req, res) => {
   try {
-    const history = await PointHistory.find({ employee: req.params.id })
-      .populate('assignedBy', 'name')
-      .sort('-createdAt');
+    const targetId = req.params.id;
+
+    // All roles can view point history of any Employee
+    // (used in leaderboard profile popup for all roles)
+    const history = await PointHistory.find({ employee: targetId })
+      .populate('assignedBy', 'name role')
+      .sort('-createdAt')
+      .limit(50);
 
     res.json(history);
   } catch (error) {

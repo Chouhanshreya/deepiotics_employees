@@ -10,6 +10,11 @@ const pointHistorySchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  category: {
+    type: String,
+    enum: ['General', 'Performance', 'Teamwork', 'Innovation', 'Leadership', 'Punctuality', 'Extra Mile'],
+    default: 'General'
+  },
   note: {
     type: String,
     default: ''

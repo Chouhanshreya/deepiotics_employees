@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   Home, User, Trophy, Users, BarChart3, 
   UserPlus, ListTodo, Settings, LogOut,
-  FileText, UserCog, TrendingUp
+  FileText, UserCog, TrendingUp, Award
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,7 +13,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { to: '/', icon: Home, label: 'Home' },
     { to: '/profile', icon: User, label: 'My Profile' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
-    { to: '/team', icon: Users, label: 'My Team' },
+    { to: '/team', icon: Users, label: 'My Teammates' },
     { to: '/stats', icon: BarChart3, label: 'My Stats' }
   ];
 
@@ -22,6 +22,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { to: '/profile', icon: User, label: 'My Profile' },
     { to: '/team', icon: Users, label: 'My Team' },
     { to: '/employees', icon: UserCog, label: 'All Employees' },
+    { to: '/point-management', icon: Award, label: 'Point Management' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/stats', icon: TrendingUp, label: 'My Stats' }
@@ -31,6 +32,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { to: '/', icon: FileText, label: 'Overview' },
     { to: '/employees', icon: UserCog, label: 'Employees' },
     { to: '/create-employee', icon: UserPlus, label: 'Create Employee' },
+    { to: '/point-management', icon: Award, label: 'Point Management' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/settings', icon: Settings, label: 'Settings' }

@@ -4,7 +4,8 @@ import { getLeaderboard, getTLLeaderboard, getBestPerformers } from '../../utils
 import { getNextTierInfo } from '../../utils/helpers';
 import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
-import { Trophy, TrendingUp, Star, Users } from 'lucide-react';
+import ProfileDrawer from '../../components/ProfileDrawer';
+import { Trophy, Star, Users } from 'lucide-react';
 
 const Leaderboard = () => {
   const { user, isTL, isAdmin } = useAuth();
@@ -13,6 +14,7 @@ const Leaderboard = () => {
   const [tlLeaderboard, setTLLeaderboard] = useState([]);
   const [bestPerformers, setBestPerformers] = useState({ bestEmployee: null, bestTL: null });
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   useEffect(() => {
     fetchAll();
@@ -24,7 +26,7 @@ const Leaderboard = () => {
         getLeaderboard(),
         getBestPerformers()
       ]);
-      setEmployeeLeaderboard(empRes.data);
+      setEmployeeLeaderboard(empRes.data); // includes both Employees and TLs
       setBestPerformers(bestRes.data);
 
       if (isTL || isAdmin) {
@@ -63,7 +65,6 @@ const Leaderboard = () => {
   }
 
   const currentUserRank = employeeLeaderboard.findIndex(u => u._id === user?._id) + 1;
-
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-800 mb-8">🏆 Leaderboard</h1>
@@ -81,7 +82,7 @@ const Leaderboard = () => {
               </div>
             </div>
           )}
-          {(isTL || isAdmin) && bestPerformers.bestTL && (
+          {bestPerformers.bestTL && (
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-5 flex items-center gap-4">
               <div className="text-4xl">👑</div>
               <div>
@@ -90,8 +91,7 @@ const Leaderboard = () => {
                 <p className="text-sm text-gray-600">{bestPerformers.bestTL.department}</p>
               </div>
             </div>
-          )}
-        </div>
+          )}        </div>
       )}
 
       {/* Progress Card — only for employees */}
@@ -164,9 +164,11 @@ const Leaderboard = () => {
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Rank</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Employee</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Department</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tier</th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Points</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -175,7 +177,8 @@ const Leaderboard = () => {
                   return (
                     <tr
                       key={employee._id}
-                      className={`${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'} ${employee.isBestEmployee ? 'border-l-4 border-amber-400' : ''}`}
+                      onClick={() => setSelectedUserId(employee._id)}
+                      className={`cursor-pointer ${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'} ${employee.isBestEmployee ? 'border-l-4 border-amber-400' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <span className={`text-xl font-bold ${getRankColor(employee.rank)}`}>
@@ -201,10 +204,18 @@ const Leaderboard = () => {
                       </td>
                       <td className="px-6 py-4 text-gray-700">{employee.department}</td>
                       <td className="px-6 py-4">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
+                          ${employee.role === 'TL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {employee.role}
+                        </span>
+                      </td>                      <td className="px-6 py-4">
                         <TierBadge tier={employee.tier} />
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="text-lg font-bold text-primary">{employee.points}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-gray-300 text-lg">›</span>
                       </td>
                     </tr>
                   );
@@ -235,7 +246,8 @@ const Leaderboard = () => {
                   return (
                     <tr
                       key={tl._id}
-                      className={`${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'} ${tl.isBestTL ? 'border-l-4 border-purple-400' : ''}`}
+                      onClick={() => setSelectedUserId(tl._id)}
+                      className={`cursor-pointer ${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'} ${tl.isBestTL ? 'border-l-4 border-purple-400' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <span className={`text-xl font-bold ${getRankColor(tl.rank)}`}>
@@ -264,6 +276,9 @@ const Leaderboard = () => {
                       <td className="px-6 py-4 text-right">
                         <span className="text-lg font-bold text-primary">{tl.teamPoints}</span>
                       </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-gray-300 text-lg">›</span>
+                      </td>
                     </tr>
                   );
                 })}
@@ -271,6 +286,14 @@ const Leaderboard = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Profile Drawer */}
+      {selectedUserId && (
+        <ProfileDrawer
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+        />
       )}
     </div>
   );
