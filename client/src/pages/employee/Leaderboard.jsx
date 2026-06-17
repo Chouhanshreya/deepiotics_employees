@@ -212,7 +212,9 @@ const Leaderboard = () => {
                         <TierBadge tier={employee.tier} />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className="text-lg font-bold text-primary">{employee.points}</span>
+                        <span className={`text-lg font-bold ${employee.points < 0 ? 'text-red-500' : 'text-primary'}`}>
+                          {employee.points}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="text-gray-300 text-lg">›</span>

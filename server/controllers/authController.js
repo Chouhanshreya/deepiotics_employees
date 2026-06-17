@@ -47,11 +47,12 @@ exports.login = async (req, res) => {
     const token = generateToken(user._id);
     console.log('✅ Token generated:', token.substring(0, 20) + '...');
 
-    // Set cookie with localhost-friendly settings
+    // Set cookie — use secure + sameSite:none on production (HTTPS), lax on localhost
+    const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: false, // Set to false for localhost
-      sameSite: 'lax',
+      secure: isProduction,         // true on HTTPS (Render), false on localhost
+      sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-site cookies on HTTPS
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       path: '/'
     };
@@ -86,11 +87,12 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
   console.log('👋 Logout request received');
   
+  const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('token', '', {
     httpOnly: true,
     expires: new Date(0),
-    secure: false,
-    sameSite: 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/'
   });
 

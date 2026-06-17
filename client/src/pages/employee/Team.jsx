@@ -120,9 +120,14 @@ const Team = () => {
                 </div>
 
                 {/* Points display */}
-                <div className="mt-4 bg-amber-50 rounded-xl px-6 py-3 w-full">
-                  <p className="text-3xl font-black text-amber-600">{teammate.points}</p>
-                  <p className="text-xs text-amber-500 font-medium">total points</p>
+                <div className={`mt-4 rounded-xl px-6 py-3 w-full ${teammate.points < 0 ? 'bg-red-50' : 'bg-amber-50'}`}>
+                  <p className={`text-3xl font-black ${teammate.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                    {teammate.points}
+                  </p>
+                  {teammate.points < 0
+                    ? <p className="text-xs text-red-400 font-medium">in debt</p>
+                    : <p className="text-xs text-amber-500 font-medium">total points</p>
+                  }
                 </div>
 
                 {/* Actions */}

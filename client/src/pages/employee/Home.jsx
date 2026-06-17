@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getGreeting, getCurrentDate, getNextTierInfo, getTierBadge } from '../../utils/helpers';
 import { getQuoteOfTheDay } from '../../utils/quotes';
 import { getLeaderboard, getPointHistory, getBestPerformers } from '../../utils/api';
-import { Trophy, CheckCircle, Flame, Award, TrendingUp, Clock, ChevronRight } from 'lucide-react';
+import { Trophy, CheckCircle, Flame, Award, TrendingUp, Clock, ChevronRight, X, Sparkles } from 'lucide-react';
 import TierBadge from '../../components/TierBadge';
 import Avatar from '../../components/Avatar';
 
@@ -25,6 +25,99 @@ const categoryColor = (cat) => {
   return map[cat] || 'bg-gray-100 text-gray-600';
 };
 
+// Confetti particle component
+const Confetti = () => {
+  const pieces = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    delay: `${Math.random() * 1.5}s`,
+    duration: `${1.5 + Math.random() * 2}s`,
+    color: ['#fbbf24','#a855f7','#6366f1','#ec4899','#10b981','#f97316'][i % 6],
+    size: `${6 + Math.random() * 8}px`,
+  }));
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {pieces.map(p => (
+        <div
+          key={p.id}
+          className="absolute rounded-sm animate-bounce"
+          style={{
+            left: p.left,
+            top: '-10px',
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            animationDelay: p.delay,
+            animationDuration: p.duration,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Congratulations Modal
+const CongratsModal = ({ type, name, onClose }) => {
+  const isBestTL = type === 'bestTL';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden
+        ${isBestTL
+          ? 'bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-700'
+          : 'bg-gradient-to-br from-amber-400 via-yellow-400 to-orange-400'}`}>
+
+        <Confetti />
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+        >
+          <X size={16} className="text-white" />
+        </button>
+
+        <div className="relative z-10 flex flex-col items-center text-center px-8 py-10">
+          {/* Trophy icon */}
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-5 shadow-xl
+            ${isBestTL ? 'bg-purple-500/40' : 'bg-amber-500/40'}`}>
+            <span className="text-6xl">{isBestTL ? '👑' : '🏅'}</span>
+          </div>
+
+          <p className={`text-xs font-black uppercase tracking-widest mb-2
+            ${isBestTL ? 'text-purple-200' : 'text-amber-800'}`}>
+            🎉 Congratulations, {name?.split(' ')[0]}!
+          </p>
+
+          <h2 className="text-3xl font-black text-white leading-tight mb-3">
+            {isBestTL ? 'Best Team Lead' : 'Best Employee'}
+            <br />of the Month!
+          </h2>
+
+          <p className={`text-sm leading-relaxed mb-8
+            ${isBestTL ? 'text-purple-200' : 'text-amber-900'}`}>
+            {isBestTL
+              ? 'Your outstanding leadership and team performance have been recognized. Keep inspiring your team!'
+              : 'Your hard work and dedication have been recognized by your team lead. Keep up the amazing work!'}
+          </p>
+
+          <button
+            onClick={onClose}
+            className={`px-8 py-3 rounded-2xl font-bold text-sm transition-all active:scale-95
+              ${isBestTL
+                ? 'bg-white text-purple-700 hover:bg-purple-50 shadow-lg'
+                : 'bg-white text-amber-700 hover:bg-amber-50 shadow-lg'}`}>
+            Thanks! 🙌
+          </button>
+        </div>
+
+        {/* Decorative circles */}
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full" />
+        <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full" />
+      </div>
+    </div>
+  );
+};
+
 const Home = () => {
   const { user } = useAuth();
   const [rank, setRank] = useState(null);
@@ -32,6 +125,7 @@ const Home = () => {
   const [bestPerformers, setBestPerformers] = useState({ bestEmployee: null, bestTL: null });
   const [leaderboardTop3, setLeaderboardTop3] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [congratsModal, setCongratsModal] = useState(null); // { type: 'bestEmployee' | 'bestTL', name }
 
   useEffect(() => {
     fetchAll();
@@ -50,6 +144,14 @@ const Home = () => {
       setLeaderboardTop3(lbRes.data.slice(0, 3));
       setPointHistory(histRes.data || []);
       setBestPerformers(bestRes.data);
+
+      // Show congratulations modal on every fresh login (no storage — pure state)
+      const { bestEmployee, bestTL } = bestRes.data;
+      if (bestEmployee && bestEmployee._id === user._id) {
+        setCongratsModal({ type: 'bestEmployee', name: user.name });
+      } else if (bestTL && bestTL._id === user._id) {
+        setCongratsModal({ type: 'bestTL', name: user.name });
+      }
     } catch (err) {
       console.error('Home fetch error:', err);
     } finally {
@@ -63,10 +165,21 @@ const Home = () => {
   const tierInfo = getNextTierInfo(user?.points || 0);
   const totalPointsEarned = pointHistory.reduce((s, h) => s + h.points, 0);
   const isTopPerformer = rank === 1;
-  const isBestEmployee = user?.isBestEmployee;
+  // Drive award banners from fresh API data, not stale AuthContext user object
+  const isBestEmployee = bestPerformers.bestEmployee?._id === user?._id;
+  const isBestTL = bestPerformers.bestTL?._id === user?._id;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+      {/* Congratulations modal — shown once per session when user wins best award */}
+      {congratsModal && (
+        <CongratsModal
+          type={congratsModal.type}
+          name={congratsModal.name}
+          onClose={() => setCongratsModal(null)}
+        />
+      )}
 
       {/* Top greeting row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -100,7 +213,7 @@ const Home = () => {
       )}
 
       {/* Congratulation banner — Best TL */}
-      {user?.isBestTL && (
+      {isBestTL && (
         <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-indigo-500 to-purple-500 rounded-2xl p-6 shadow-xl">
           {/* decorative blobs */}
           <div className="absolute -top-6 -right-6 w-32 h-32 bg-white/10 rounded-full" />

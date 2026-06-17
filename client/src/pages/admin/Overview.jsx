@@ -22,6 +22,7 @@ const Overview = () => {
   const [overview, setOverview] = useState(null);
   const [bestPerformers, setBestPerformers] = useState({ bestEmployee: null, bestTL: null });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -32,6 +33,7 @@ const Overview = () => {
       setBestPerformers(bestRes.data);
     } catch (err) {
       console.error(err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -41,6 +43,20 @@ const Overview = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !overview) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <p className="text-gray-500 text-sm">{error || 'Could not load dashboard.'}</p>
+        <button
+          onClick={() => { setLoading(true); setError(null); fetchAll(); }}
+          className="text-primary text-sm font-semibold hover:underline"
+        >
+          Retry
+        </button>
       </div>
     );
   }

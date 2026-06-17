@@ -255,7 +255,9 @@ const PointManagement = () => {
                       <td className="px-5 py-3 text-sm text-gray-500">{emp.teamLead?.name || '—'}</td>
                       <td className="px-5 py-3"><TierBadge tier={emp.tier} /></td>
                       <td className="px-5 py-3 text-right">
-                        <span className="text-lg font-black text-amber-600">{emp.points}</span>
+                        <span className={`text-lg font-black ${emp.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                          {emp.points}
+                        </span>
                       </td>
                       <td className="px-5 py-3 text-center">
                         <button

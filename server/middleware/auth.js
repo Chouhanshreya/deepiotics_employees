@@ -6,12 +6,17 @@ exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // Check for token in cookies
+    // 1. Check for token in cookies (preferred)
     if (req.cookies.token) {
       token = req.cookies.token;
       console.log('✅ Token found in cookies');
+    }
+    // 2. Fallback: Authorization header (Bearer token)
+    else if (req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+      console.log('✅ Token found in Authorization header');
     } else {
-      console.log('❌ No token in cookies:', Object.keys(req.cookies));
+      console.log('❌ No token in cookies or headers:', Object.keys(req.cookies));
     }
 
     // Check if token exists

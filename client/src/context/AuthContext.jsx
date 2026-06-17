@@ -37,6 +37,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await loginApi(credentials);
+      // Save token to localStorage so the request interceptor can send it
+      // as an Authorization header (fallback for when cookies are blocked in production)
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
       setUser(response.data);
       return { success: true };
     } catch (error) {
@@ -50,9 +55,12 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await logoutApi();
+      localStorage.removeItem('token');
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
+      localStorage.removeItem('token');
+      setUser(null);
     }
   };
 

@@ -158,7 +158,9 @@ const Employees = () => {
                     <TierBadge tier={employee.tier} />
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <span className="text-lg font-black text-primary">{employee.points}</span>
+                    <span className={`text-lg font-black ${employee.points < 0 ? 'text-red-500' : 'text-primary'}`}>
+                      {employee.points}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-1">
