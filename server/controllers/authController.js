@@ -17,13 +17,11 @@ exports.login = async (req, res) => {
 
     console.log('🔐 Login attempt:', email);
 
-    // Validate input
     if (!email || !password) {
       console.log('❌ Missing email or password');
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // Check if user exists
     const user = await User.findOne({ email }).populate('teamLead', 'name');
 
     if (!user) {
@@ -33,7 +31,6 @@ exports.login = async (req, res) => {
 
     console.log('✅ User found:', user.name, user.role);
 
-    // Check password
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
@@ -43,24 +40,21 @@ exports.login = async (req, res) => {
 
     console.log('✅ Password correct');
 
-    // Generate token
     const token = generateToken(user._id);
     console.log('✅ Token generated:', token.substring(0, 20) + '...');
 
-    // Set cookie — use secure + sameSite:none on production (HTTPS), lax on localhost
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction,         // true on HTTPS (Render), false on localhost
-      sameSite: isProduction ? 'none' : 'lax', // 'none' required for cross-site cookies on HTTPS
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
       path: '/'
     };
 
     res.cookie('token', token, cookieOptions);
 
-    console.log('✅ Cookie set with options:', JSON.stringify(cookieOptions, null, 2));
-    console.log('✅ Sending response...');
+    console.log('✅ Cookie set, sending response...');
 
     res.json({
       _id: user._id,
@@ -73,6 +67,8 @@ exports.login = async (req, res) => {
       teamLead: user.teamLead,
       tasksCompleted: user.tasksCompleted,
       activeStreak: user.activeStreak,
+      isBestEmployee: user.isBestEmployee,
+      isBestTL: user.isBestTL,
       token
     });
   } catch (error) {
@@ -86,7 +82,7 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.logout = async (req, res) => {
   console.log('👋 Logout request received');
-  
+
   const isProduction = process.env.NODE_ENV === 'production';
   res.cookie('token', '', {
     httpOnly: true,
@@ -110,6 +106,37 @@ exports.getMe = async (req, res) => {
       .populate('teamLead', 'name email');
 
     res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Change password (logged-in user only)
+// @route   PUT /api/auth/change-password
+// @access  Private
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Please provide current and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    user.password = newPassword; // pre-save hook will hash it
+    await user.save();
+
+    res.json({ message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

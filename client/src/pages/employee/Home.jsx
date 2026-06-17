@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getGreeting, getCurrentDate, getNextTierInfo, getTierBadge } from '../../utils/helpers';
 import { getQuoteOfTheDay } from '../../utils/quotes';
 import { getLeaderboard, getPointHistory, getBestPerformers } from '../../utils/api';
-import { Trophy, CheckCircle, Flame, Award, TrendingUp, Clock, ChevronRight, X, Sparkles } from 'lucide-react';
+import { Trophy, Award, TrendingUp, Clock, ChevronRight, X, Sparkles } from 'lucide-react';
 import TierBadge from '../../components/TierBadge';
 import Avatar from '../../components/Avatar';
 
@@ -245,7 +245,7 @@ const Home = () => {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Points */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
@@ -262,15 +262,6 @@ const Home = () => {
           </div>
           <p className="text-3xl font-black text-purple-600">{rank ? `#${rank}` : '—'}</p>
           <p className="text-sm text-gray-500 mt-1">Your Rank</p>
-        </div>
-
-        {/* Tasks */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center mb-3">
-            <CheckCircle className="text-teal-600" size={20} />
-          </div>
-          <p className="text-3xl font-black text-teal-600">{user?.tasksCompleted || 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Tasks Done</p>
         </div>
 
         {/* Awards received */}

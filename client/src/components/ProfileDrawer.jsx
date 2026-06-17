@@ -134,7 +134,7 @@ const ProfileDrawer = ({ userId, onClose }) => {
               </div>
 
               {/* Stats row */}
-              <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 bg-gray-50">
+              <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100 bg-gray-50">
                 <div className="p-5 text-center">
                   <p className={`text-3xl font-black ${profile.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
                     {profile.points}
@@ -147,10 +147,6 @@ const ProfileDrawer = ({ userId, onClose }) => {
                 <div className="p-5 text-center">
                   <p className="text-3xl font-black text-blue-600">{history.length}</p>
                   <p className="text-xs text-gray-500 mt-1 font-medium">Awards Received</p>
-                </div>
-                <div className="p-5 text-center">
-                  <p className="text-3xl font-black text-green-600">{profile.tasksCompleted || 0}</p>
-                  <p className="text-xs text-gray-500 mt-1 font-medium">Tasks Completed</p>
                 </div>
               </div>
 
