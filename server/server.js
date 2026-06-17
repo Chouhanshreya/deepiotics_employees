@@ -12,9 +12,23 @@ connectDB();
 
 const app = express();
 
-// Middleware
+// Allowed origins: CLIENT_URL env var (set in Render dashboard) + local dev
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  process.env.CLIENT_URL, // e.g. https://deepiotics-employees-1.onrender.com
+].filter(Boolean); // remove undefined if CLIENT_URL is not set
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
