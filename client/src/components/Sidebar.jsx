@@ -27,6 +27,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { to: '/point-management', icon: Award, label: 'Point Management' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { to: '/monthly-history', icon: TrendingUp, label: 'Monthly History' },
     { to: '/stats', icon: TrendingUp, label: 'My Stats' }
   ];
 
@@ -37,6 +38,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { to: '/point-management', icon: Award, label: 'Point Management' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { to: '/monthly-history', icon: TrendingUp, label: 'Monthly History' },
     { to: '/settings', icon: Settings, label: 'Settings' }
   ];
 

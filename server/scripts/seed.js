@@ -141,7 +141,7 @@ const seedDatabase = async () => {
     console.log('Created Point History');
 
     console.log('\n✅ Database seeded successfully!');
-    console.log('\nDemo Accounts:');
+    console.log('\nDemo Accounts (all passwords are: password123)');
     console.log('Admin: admin@ems.com / password123');
     console.log('TL 1: john@ems.com / password123');
     console.log('TL 2: sarah@ems.com / password123');

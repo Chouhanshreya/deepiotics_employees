@@ -1,5 +1,22 @@
 const User = require('../models/User');
 const PointHistory = require('../models/PointHistory');
+const MonthlyPoints = require('../models/MonthlyPoints');
+
+/**
+ * Shared helper — ensures a MonthlyPoints row exists for the current month.
+ * Called automatically when a user is created or points are assigned.
+ * Uses upsert so it's always safe to call — never duplicates.
+ */
+const ensureCurrentMonthRow = async (userId) => {
+  const now   = new Date();
+  const month = now.getMonth() + 1;
+  const year  = now.getFullYear();
+  await MonthlyPoints.findOneAndUpdate(
+    { employeeId: userId, month, year },
+    { $setOnInsert: { employeeId: userId, month, year, points: 0 } },
+    { upsert: true, new: false }
+  );
+};
 
 // @desc    Get all users (Admin sees all, TL sees their team)
 // @route   GET /api/users
@@ -93,6 +110,12 @@ exports.createUser = async (req, res) => {
       department,
       teamLead: teamLead || (req.user.role === 'TL' ? req.user._id : null)
     });
+
+    // Auto-create current month's MonthlyPoints row (points: 0)
+    // so the employee appears in Monthly History from day one
+    if (user.role === 'Employee' || user.role === 'TL') {
+      await ensureCurrentMonthRow(user._id);
+    }
 
     const userResponse = await User.findById(user._id)
       .select('-password')
@@ -259,6 +282,19 @@ exports.assignPoints = async (req, res) => {
     await targetUser.save();
 
     console.log(`✅ ${req.user.name} (${req.user.role}) assigned ${pointsToAdd} pts [${category || 'General'}] to ${targetUser.name}. Total: ${targetUser.points}`);
+
+    // Also update MonthlyPoints for the current month (upsert — safe if row doesn't exist yet)
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+    await MonthlyPoints.findOneAndUpdate(
+      { employeeId: targetUser._id, month, year },
+      {
+        $inc: { points: pointsToAdd },
+        $setOnInsert: { employeeId: targetUser._id, month, year }
+      },
+      { upsert: true, new: true }
+    );
 
     // Create point history for the employee
     await PointHistory.create({

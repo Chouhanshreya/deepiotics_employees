@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const PointHistory = require('../models/PointHistory');
 const MonthlyArchive = require('../models/MonthlyArchive');
+const MonthlyPoints = require('../models/MonthlyPoints');
+const Ranking = require('../models/Ranking');
 
 // @desc    Get TL leaderboard (TL ranked by their team's total points)
 // @route   GET /api/admin/leaderboard/tls
@@ -246,5 +248,134 @@ exports.getArchiveById = async (req, res) => {
     res.json(archive);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/close-month
+// Manually close the current month and start the next one.
+//
+// What it does:
+//   1. Finds the latest month that has monthlyPoints data (the "current" month)
+//   2. Calculates Star Performer + Best TL for that month → writes to rankings
+//   3. Creates monthlyPoints rows for the NEXT month (points: 0) for everyone
+//   4. Resets User.points to 0
+//   5. Updates isBestEmployee / isBestTL badges on User docs
+// ---------------------------------------------------------------------------
+exports.closeMonthAndStartNew = async (req, res) => {
+  try {
+    // ── Find the latest month with data ─────────────────────────────────────
+    const latest = await MonthlyPoints.aggregate([
+      { $group: { _id: { month: '$month', year: '$year' } } },
+      { $sort:  { '_id.year': -1, '_id.month': -1 } },
+      { $limit: 1 }
+    ]);
+
+    if (!latest.length) {
+      return res.status(400).json({ message: 'No monthlyPoints data found. Nothing to close.' });
+    }
+
+    const { month: closingMonth, year: closingYear } = latest[0]._id;
+
+    // ── Calculate next month ─────────────────────────────────────────────────
+    const nextDate  = new Date(closingYear, closingMonth, 1); // JS months 0-indexed
+    const nextMonth = nextDate.getMonth() + 1;
+    const nextYear  = nextDate.getFullYear();
+
+    // Guard: don't close a month that's already been followed by another
+    const alreadyExists = await MonthlyPoints.findOne({ month: nextMonth, year: nextYear });
+    if (alreadyExists) {
+      return res.status(400).json({
+        message: `${nextMonth}/${nextYear} already has data — this month was already closed.`
+      });
+    }
+
+    // ── Get all employees and TLs ────────────────────────────────────────────
+    const allUsers = await User.find({ role: { $in: ['Employee', 'TL'] } }).select('_id role');
+    const empIds   = allUsers.filter(u => u.role === 'Employee').map(u => u._id);
+    const tlIds    = allUsers.filter(u => u.role === 'TL').map(u => u._id);
+
+    // ── Step 1: Calculate rankings for closing month ─────────────────────────
+    const topEmpDoc = await MonthlyPoints.findOne({
+      month: closingMonth, year: closingYear,
+      employeeId: { $in: empIds }
+    }).sort({ points: -1 });
+
+    const topTLDoc = await MonthlyPoints.findOne({
+      month: closingMonth, year: closingYear,
+      employeeId: { $in: tlIds }
+    }).sort({ points: -1 });
+
+    let starPerformer = null;
+    let bestTL = null;
+
+    if (topEmpDoc) {
+      starPerformer = await Ranking.findOneAndUpdate(
+        { employeeId: topEmpDoc.employeeId, month: closingMonth, year: closingYear, isStarPerformer: true },
+        { $set: { employeeId: topEmpDoc.employeeId, month: closingMonth, year: closingYear,
+                  rankPosition: 1, isStarPerformer: true, isBestTL: false } },
+        { upsert: true, new: true }
+      );
+    }
+
+    if (topTLDoc) {
+      bestTL = await Ranking.findOneAndUpdate(
+        { employeeId: topTLDoc.employeeId, month: closingMonth, year: closingYear, isBestTL: true },
+        { $set: { employeeId: topTLDoc.employeeId, month: closingMonth, year: closingYear,
+                  rankPosition: 1, isStarPerformer: false, isBestTL: true } },
+        { upsert: true, new: true }
+      );
+    }
+
+    // ── Step 2: Create next month rows (points: 0) ───────────────────────────
+    let rowsCreated = 0;
+    for (const user of allUsers) {
+      const existing = await MonthlyPoints.findOne({
+        employeeId: user._id, month: nextMonth, year: nextYear
+      });
+      if (!existing) {
+        await MonthlyPoints.create({
+          employeeId: user._id, month: nextMonth, year: nextYear, points: 0
+        });
+        rowsCreated++;
+      }
+    }
+
+    // ── Step 3: Reset User.points to 0 ──────────────────────────────────────
+    await User.updateMany(
+      { role: { $in: ['Employee', 'TL'] } },
+      { $set: { points: 0, isBestEmployee: false, isBestTL: false } }
+    );
+
+    // ── Step 4: Set winner badges on User docs ───────────────────────────────
+    if (starPerformer) {
+      await User.findByIdAndUpdate(starPerformer.employeeId, { isBestEmployee: true });
+    }
+    if (bestTL) {
+      await User.findByIdAndUpdate(bestTL.employeeId, { isBestTL: true });
+    }
+
+    // ── Populate winner names for response ───────────────────────────────────
+    const starUser = starPerformer
+      ? await User.findById(starPerformer.employeeId).select('name department')
+      : null;
+    const tlUser = bestTL
+      ? await User.findById(bestTL.employeeId).select('name department')
+      : null;
+
+    const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun',
+                             'Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    return res.json({
+      message: `${MONTH_NAMES[closingMonth]} ${closingYear} closed. ${MONTH_NAMES[nextMonth]} ${nextYear} started.`,
+      closedMonth:  { month: closingMonth, year: closingYear },
+      newMonth:     { month: nextMonth,    year: nextYear    },
+      rowsCreated,
+      starPerformer: starUser ? { name: starUser.name, department: starUser.department } : null,
+      bestTL:        tlUser   ? { name: tlUser.name,   department: tlUser.department   } : null,
+    });
+  } catch (error) {
+    console.error('closeMonthAndStartNew error:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

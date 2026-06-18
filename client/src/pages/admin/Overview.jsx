@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getOverview, getBestPerformers } from '../../utils/api';
+import { getOverview, getBestPerformers, getLiveRankings } from '../../utils/api';
 import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
 import { Users, Award, Trophy, TrendingUp, Star, Clock, Layers, ArrowRight } from 'lucide-react';
@@ -21,6 +21,7 @@ const Overview = () => {
   const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
   const [bestPerformers, setBestPerformers] = useState({ bestEmployee: null, bestTL: null });
+  const [liveRankings, setLiveRankings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,9 +29,14 @@ const Overview = () => {
 
   const fetchAll = async () => {
     try {
-      const [ovRes, bestRes] = await Promise.all([getOverview(), getBestPerformers()]);
+      const [ovRes, bestRes, liveRes] = await Promise.all([
+        getOverview(),
+        getBestPerformers(),
+        getLiveRankings()
+      ]);
       setOverview(ovRes.data);
       setBestPerformers(bestRes.data);
+      setLiveRankings(liveRes.data);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || 'Failed to load dashboard data');
@@ -100,26 +106,26 @@ const Overview = () => {
         ))}
       </div>
 
-      {/* Best Performers */}
-      {(bestPerformers.bestEmployee || bestPerformers.bestTL) && (
+      {/* Best Performers — live from current month's highest points */}
+      {(liveRankings?.starPerformer || liveRankings?.bestTL) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {bestPerformers.bestEmployee && (
+          {liveRankings.starPerformer && (
             <div className="bg-gradient-to-r from-amber-400 to-yellow-300 rounded-2xl p-5 flex items-center gap-4 shadow-md">
               <span className="text-5xl">🏅</span>
               <div className="flex-1">
-                <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Best Employee of the Month</p>
-                <p className="text-xl font-black text-white">{bestPerformers.bestEmployee.name}</p>
-                <p className="text-amber-100 text-sm">{bestPerformers.bestEmployee.department} · {bestPerformers.bestEmployee.points} pts</p>
+                <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">⭐ This Month's Star Performer</p>
+                <p className="text-xl font-black text-white">{liveRankings.starPerformer.name}</p>
+                <p className="text-amber-100 text-sm">{liveRankings.starPerformer.department} · {liveRankings.starPerformer.monthPoints} pts this month</p>
               </div>
             </div>
           )}
-          {bestPerformers.bestTL && (
+          {liveRankings.bestTL && (
             <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl p-5 flex items-center gap-4 shadow-md">
               <span className="text-5xl">👑</span>
               <div className="flex-1">
-                <p className="text-xs font-black text-purple-200 uppercase tracking-widest mb-1">Best TL of the Month</p>
-                <p className="text-xl font-black text-white">{bestPerformers.bestTL.name}</p>
-                <p className="text-purple-200 text-sm">{bestPerformers.bestTL.department}</p>
+                <p className="text-xs font-black text-purple-200 uppercase tracking-widest mb-1">🏆 This Month's Best TL</p>
+                <p className="text-xl font-black text-white">{liveRankings.bestTL.name}</p>
+                <p className="text-purple-200 text-sm">{liveRankings.bestTL.department} · {liveRankings.bestTL.monthPoints} pts this month</p>
               </div>
             </div>
           )}

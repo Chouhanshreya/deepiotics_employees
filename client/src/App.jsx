@@ -21,6 +21,7 @@ import EditEmployee from './pages/admin/EditEmployee';
 import Analytics from './pages/admin/Analytics';
 import Settings from './pages/admin/Settings';
 import PointManagement from './pages/admin/PointManagement';
+import MonthlyHistory from './pages/admin/MonthlyHistory';
 
 import SessionTest from './pages/SessionTest';
 
@@ -155,6 +156,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['Admin', 'TL']}>
                   <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/monthly-history"
+              element={
+                <ProtectedRoute allowedRoles={['Admin', 'TL']}>
+                  <MonthlyHistory />
                 </ProtectedRoute>
               }
             />

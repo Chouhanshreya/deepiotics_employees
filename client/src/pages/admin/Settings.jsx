@@ -6,10 +6,11 @@ import {
   declareBestEmployee,
   declareBestTL,
   resetMonth,
-  getArchives
+  getArchives,
+  closeMonthAndStartNew
 } from '../../utils/api';
 import Avatar from '../../components/Avatar';
-import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle, Calendar, ArrowRight } from 'lucide-react';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -19,6 +20,9 @@ const Settings = () => {
   const [archives, setArchives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closeResult, setCloseResult] = useState(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [declaring, setDeclaring] = useState('');
   const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -89,11 +93,27 @@ const Settings = () => {
     try {
       const res = await resetMonth();
       showMsg('success', res.data.message);
-      fetchData(); // refresh archives + best performers
+      fetchData();
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to reset month');
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleCloseMonth = async () => {
+    setClosing(true);
+    setShowCloseConfirm(false);
+    setCloseResult(null);
+    try {
+      const res = await closeMonthAndStartNew();
+      setCloseResult(res.data);
+      showMsg('success', res.data.message);
+      fetchData();
+    } catch (error) {
+      showMsg('error', error.response?.data?.message || 'Failed to close month');
+    } finally {
+      setClosing(false);
     }
   };
 
@@ -213,6 +233,77 @@ const Settings = () => {
             {declaring === 'tl' ? 'Declaring...' : 'Declare 👑'}
           </button>
         </div>
+      </div>
+
+      {/* ── Close Month & Start New Month ── */}
+      <div className="bg-white p-6 rounded-2xl border-2 border-indigo-200 mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Calendar className="text-indigo-500" size={24} />
+          <h2 className="text-xl font-semibold text-gray-800">Close Month & Start New Month</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Closes the current month: calculates Star Performer + Best TL, resets all points to 0,
+          and creates fresh rows for the next month. This is what the cron job does automatically
+          on the 1st — use this to trigger it manually anytime.
+        </p>
+
+        {/* Result banner after successful close */}
+        {closeResult && (
+          <div className="mb-4 bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm">
+            <p className="font-bold text-indigo-700 mb-2">✅ {closeResult.message}</p>
+            <div className="flex flex-wrap gap-4">
+              {closeResult.starPerformer && (
+                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-semibold">
+                  ⭐ Star Performer: {closeResult.starPerformer.name}
+                </span>
+              )}
+              {closeResult.bestTL && (
+                <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full font-semibold">
+                  👑 Best TL: {closeResult.bestTL.name}
+                </span>
+              )}
+              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
+                {closeResult.rowsCreated} new rows created for next month
+              </span>
+            </div>
+          </div>
+        )}
+
+        {!showCloseConfirm ? (
+          <button
+            onClick={() => setShowCloseConfirm(true)}
+            disabled={closing}
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+          >
+            <Calendar size={18} />
+            Close Current Month & Start Next
+            <ArrowRight size={16} />
+          </button>
+        ) : (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+            <p className="font-semibold text-indigo-800 mb-1 flex items-center gap-2">
+              <AlertTriangle size={18} /> Are you sure?
+            </p>
+            <p className="text-sm text-indigo-600 mb-3">
+              This will lock the current month's rankings, reset all points to 0, and start the next month.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseMonth}
+                disabled={closing}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+              >
+                {closing ? 'Processing…' : 'Yes, Close & Start New Month'}
+              </button>
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reset Month */}

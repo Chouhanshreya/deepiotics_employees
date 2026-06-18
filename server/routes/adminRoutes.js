@@ -7,7 +7,8 @@ const {
   getBestPerformers,
   resetMonth,
   getArchives,
-  getArchiveById
+  getArchiveById,
+  closeMonthAndStartNew
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -23,5 +24,8 @@ router.post('/best-tl', protect, authorize('Admin'), declareBestTL);
 router.post('/reset-month', protect, authorize('Admin'), resetMonth);
 router.get('/archives', protect, authorize('Admin'), getArchives);
 router.get('/archives/:id', protect, authorize('Admin'), getArchiveById);
+
+// New: close current month + start next month in the monthlyPoints system
+router.post('/close-month', protect, authorize('Admin'), closeMonthAndStartNew);
 
 module.exports = router;

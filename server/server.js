@@ -45,6 +45,11 @@ app.use('/api/tasks', require('./routes/taskRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
+// Monthly points tracking routes
+app.use('/api/points', require('./routes/pointsRoutes'));
+app.use('/api/analysis', require('./routes/analysisRoutes'));
+app.use('/api/rankings', require('./routes/rankingsRoutes'));
+
 // One-time seed endpoint — protected by SEED_SECRET env variable
 // Call: POST /api/seed  with header  x-seed-secret: <your SEED_SECRET value>
 // Delete or disable this after first use in production.
@@ -145,7 +150,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const { startMonthlyRolloverCron } = require('./cron/monthlyRollover');
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  // Start the monthly rollover cron after the server (and DB) are ready
+  startMonthlyRolloverCron();
 });
