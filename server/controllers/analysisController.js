@@ -10,6 +10,36 @@ const MonthlyPoints = require('../models/MonthlyPoints');
  */
 const monthIndex = (date) => date.getFullYear() * 12 + (date.getMonth() + 1);
 
+/**
+ * Shared aggregation — returns ranked list of employees/TLs for last N months.
+ * Optionally filtered to a specific role ('Employee' or 'TL').
+ */
+const buildTopPerformersPipeline = (N, roleFilter) => {
+  const now = new Date();
+  const lowerBound = new Date(now.getFullYear(), now.getMonth() - (N - 1), 1);
+  const minIdx = monthIndex(lowerBound);
+  const maxIdx = monthIndex(now);
+
+  return [
+    { $addFields: { monthIdx: { $add: [{ $multiply: ['$year', 12] }, '$month'] } } },
+    { $match: { monthIdx: { $gte: minIdx, $lte: maxIdx } } },
+    { $group: { _id: '$employeeId', totalPoints: { $sum: '$points' }, monthsWithData: { $sum: 1 } } },
+    { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+    ...(roleFilter ? [{ $match: { 'user.role': roleFilter } }] : []),
+    { $project: {
+        _id: 0,
+        employeeId:   '$_id',
+        name:         '$user.name',
+        role:         '$user.role',
+        department:   '$user.department',
+        totalPoints:  1,
+        monthsWithData: 1
+    }},
+    { $sort: { totalPoints: -1 } }
+  ];
+};
+
 // ---------------------------------------------------------------------------
 // GET /api/analysis?months=N
 //
@@ -121,6 +151,49 @@ exports.getAnalysis = async (req, res) => {
     });
   } catch (error) {
     console.error('getAnalysis error:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/analysis/top-performers?months=N
+//
+// Returns the #1 Employee and #1 TL by total points across the last N months.
+// N can be 1, 3, 6, or 12.
+// Used for the "Best of 3 Months / 6 Months" feature on the Monthly History page.
+// ---------------------------------------------------------------------------
+exports.getTopPerformersByRange = async (req, res) => {
+  try {
+    const ALLOWED = [1, 3, 6, 12];
+    const N = parseInt(req.query.months, 10);
+    if (!N || !ALLOWED.includes(N)) {
+      return res.status(400).json({ message: `months must be one of: ${ALLOWED.join(', ')}` });
+    }
+
+    const now        = new Date();
+    const lowerBound = new Date(now.getFullYear(), now.getMonth() - (N - 1), 1);
+
+    // Run employee and TL pipelines in parallel
+    const [empResults, tlResults] = await Promise.all([
+      MonthlyPoints.aggregate(buildTopPerformersPipeline(N, 'Employee')),
+      MonthlyPoints.aggregate(buildTopPerformersPipeline(N, 'TL'))
+    ]);
+
+    const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun',
+                             'Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    return res.json({
+      months: N,
+      rangeFrom: `${MONTH_NAMES[lowerBound.getMonth() + 1]} ${lowerBound.getFullYear()}`,
+      rangeTo:   `${MONTH_NAMES[now.getMonth() + 1]} ${now.getFullYear()}`,
+      bestEmployee: empResults[0] ?? null,   // top employee or null if no data
+      bestTL:       tlResults[0]  ?? null,   // top TL or null
+      // Also return top 5 for each so UI can show a leaderboard if wanted
+      topEmployees: empResults.slice(0, 5),
+      topTLs:       tlResults.slice(0, 5),
+    });
+  } catch (error) {
+    console.error('getTopPerformersByRange error:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

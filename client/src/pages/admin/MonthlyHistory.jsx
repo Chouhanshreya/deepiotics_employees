@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
-import { Calendar, TrendingUp, Star, ChevronDown, RefreshCw } from 'lucide-react';
+import { Calendar, TrendingUp, Star, ChevronDown, RefreshCw, Trophy } from 'lucide-react';
 import Avatar from '../../components/Avatar';
 import api from '../../utils/api';
 
@@ -23,11 +23,11 @@ const RANGE_OPTIONS = [
 ];
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
-const getAnalysis  = (months) => api.get(`/analysis?months=${months}`);
-const getRankings  = (m, y)   => api.get(`/rankings?month=${m}&year=${y}`);
-const calcRankings = (m, y)   => api.post('/rankings/calculate', { month: m, year: y });
-// Fetch all distinct months that have monthlypoints data
-const getAvailableMonths = () => api.get('/points/available-months');
+const getAnalysis          = (months) => api.get(`/analysis?months=${months}`);
+const getRankings          = (m, y)   => api.get(`/rankings?month=${m}&year=${y}`);
+const calcRankings         = (m, y)   => api.post('/rankings/calculate', { month: m, year: y });
+const getAvailableMonths   = ()       => api.get('/points/available-months');
+const getTopPerformersByRange = (n)   => api.get(`/analysis/top-performers?months=${n}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,10 @@ const MonthlyHistory = () => {
   const [range,      setRange]      = useState(3);
   const [cumulData,  setCumulData]  = useState(null);
   const [rankings,   setRankings]   = useState(null);
+
+  // Multi-month best performers (3 months and 6 months)
+  const [multiWinners, setMultiWinners] = useState({ 3: null, 6: null });
+  const [multiLoading, setMultiLoading] = useState(true);
 
   const [monthsLoading, setMonthsLoading] = useState(true);
   const [cumulLoading,  setCumulLoading]  = useState(false);
@@ -109,6 +113,24 @@ const MonthlyHistory = () => {
       }
     })();
   }, [range]);
+
+  // ── 4. Fetch 3-month and 6-month best performers on mount ─────────────────
+  useEffect(() => {
+    (async () => {
+      setMultiLoading(true);
+      try {
+        const [res3, res6] = await Promise.all([
+          getTopPerformersByRange(3),
+          getTopPerformersByRange(6),
+        ]);
+        setMultiWinners({ 3: res3.data, 6: res6.data });
+      } catch (e) {
+        console.error('multiWinners error', e);
+      } finally {
+        setMultiLoading(false);
+      }
+    })();
+  }, []);
 
   // ── handlers ──────────────────────────────────────────────────────────────
   const handleMonthChange = (e) => {
@@ -310,7 +332,149 @@ const MonthlyHistory = () => {
         </button>
       </div>
 
-      {/* ── Performance Analysis ─────────────────────────────────────────── */}
+      {/* ── Multi-Month Best Performers (3 months & 6 months) ────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100">
+          <Trophy size={18} className="text-amber-500" />
+          <h2 className="font-bold text-gray-700">Best Performers by Period</h2>
+          <span className="text-xs text-gray-400 ml-1">— highest cumulative points</span>
+        </div>
+
+        {multiLoading ? (
+          <div className="h-40 flex items-center justify-center">
+            <div className="w-7 h-7 border-4 border-indigo-300 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="p-5 space-y-5">
+            {[3, 6].map(n => {
+              const data = multiWinners[n];
+              const emp  = data?.bestEmployee;
+              const tl   = data?.bestTL;
+              return (
+                <div key={n}>
+                  {/* Period label */}
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
+                    Last {n} Months &nbsp;
+                    <span className="text-gray-300 font-normal normal-case tracking-normal">
+                      ({data?.rangeFrom} → {data?.rangeTo})
+                    </span>
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Best Employee */}
+                    {emp ? (
+                      <div className="flex items-center gap-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-4">
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-2xl shrink-0">
+                          🏅
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-0.5">
+                            ⭐ Best Employee — {n}M
+                          </p>
+                          <p className="font-black text-gray-800 text-lg truncate">{emp.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {emp.department} &nbsp;·&nbsp;
+                            <span className="font-bold text-amber-600">{emp.totalPoints} pts total</span>
+                            &nbsp;across {emp.monthsWithData} month{emp.monthsWithData !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-4">
+                        <span className="text-3xl opacity-30">🏅</span>
+                        <p className="text-sm text-gray-400">No employee data for last {n} months</p>
+                      </div>
+                    )}
+
+                    {/* Best TL */}
+                    {tl ? (
+                      <div className="flex items-center gap-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4">
+                        <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-2xl shrink-0">
+                          👑
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-0.5">
+                            🏆 Best TL — {n}M
+                          </p>
+                          <p className="font-black text-gray-800 text-lg truncate">{tl.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {tl.department} &nbsp;·&nbsp;
+                            <span className="font-bold text-purple-600">{tl.totalPoints} pts total</span>
+                            &nbsp;across {tl.monthsWithData} month{tl.monthsWithData !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-4">
+                        <span className="text-3xl opacity-30">👑</span>
+                        <p className="text-sm text-gray-400">No TL data for last {n} months</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Top 5 mini-leaderboard for this period */}
+                  {(data?.topEmployees?.length > 0 || data?.topTLs?.length > 0) && (
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* Top 5 employees */}
+                      {data.topEmployees?.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-3">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                            Top Employees ({n}M)
+                          </p>
+                          <div className="space-y-1.5">
+                            {data.topEmployees.map((e, i) => {
+                              const medals = ['🥇','🥈','🥉'];
+                              return (
+                                <div key={e.employeeId} className="flex items-center gap-2">
+                                  <span className="text-sm w-5 text-center">
+                                    {medals[i] ?? <span className="text-gray-400 text-xs">#{i+1}</span>}
+                                  </span>
+                                  <Avatar name={e.name || '?'} size="xs" />
+                                  <span className="text-sm text-gray-700 flex-1 truncate">{e.name}</span>
+                                  <span className="text-sm font-bold text-amber-600">{e.totalPoints}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Top 5 TLs */}
+                      {data.topTLs?.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-3">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                            Top TLs ({n}M)
+                          </p>
+                          <div className="space-y-1.5">
+                            {data.topTLs.map((t, i) => {
+                              const medals = ['🥇','🥈','🥉'];
+                              return (
+                                <div key={t.employeeId} className="flex items-center gap-2">
+                                  <span className="text-sm w-5 text-center">
+                                    {medals[i] ?? <span className="text-gray-400 text-xs">#{i+1}</span>}
+                                  </span>
+                                  <Avatar name={t.name || '?'} size="xs" />
+                                  <span className="text-sm text-gray-700 flex-1 truncate">{t.name}</span>
+                                  <span className="text-sm font-bold text-purple-600">{t.totalPoints}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Divider between 3M and 6M */}
+                  {n === 3 && <div className="border-t border-gray-100 mt-5" />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Performance Analysis (cumulative range) ─────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-gray-100">

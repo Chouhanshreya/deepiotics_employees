@@ -71,6 +71,7 @@ export const getUserStats = (id) => api.get(`/analytics/user-stats/${id || ''}`)
 export const updateMonthlyPoints = (data) => api.post('/points/update', data);
 export const getCurrentMonthPoints = (employeeId) => api.get(`/points/current/${employeeId}`);
 export const getAnalysis = (months) => api.get(`/analysis?months=${months}`);
+export const getTopPerformersByRange = (months) => api.get(`/analysis/top-performers?months=${months}`);
 export const getRankings = (month, year) => api.get(`/rankings?month=${month}&year=${year}`);
 export const calculateRankings = (month, year) => api.post('/rankings/calculate', { month, year });
 export const getLiveRankings = () => api.get('/rankings/live');
