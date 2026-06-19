@@ -7,7 +7,8 @@ import {
   declareBestTL,
   resetMonth,
   getArchives,
-  closeMonthAndStartNew
+  closeMonthAndStartNew,
+  cleanTestData
 } from '../../utils/api';
 import Avatar from '../../components/Avatar';
 import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle, Calendar, ArrowRight } from 'lucide-react';
@@ -20,6 +21,8 @@ const Settings = () => {
   const [archives, setArchives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [showCleanConfirm, setShowCleanConfirm] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closeResult, setCloseResult] = useState(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -84,6 +87,20 @@ const Settings = () => {
       showMsg('error', error.response?.data?.message || 'Failed to declare best TL');
     } finally {
       setDeclaring('');
+    }
+  };
+
+  const handleCleanTestData = async () => {
+    setCleaning(true);
+    setShowCleanConfirm(false);
+    try {
+      const res = await cleanTestData();
+      showMsg('success', res.data.message);
+      fetchData();
+    } catch (error) {
+      showMsg('error', error.response?.data?.message || 'Failed to clean test data');
+    } finally {
+      setCleaning(false);
     }
   };
 
@@ -297,6 +314,53 @@ const Settings = () => {
               </button>
               <button
                 onClick={() => setShowCloseConfirm(false)}
+                className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Clean Test Data ── */}
+      <div className="bg-white p-6 rounded-2xl border-2 border-orange-200 mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <RefreshCw className="text-orange-500" size={24} />
+          <h2 className="text-xl font-semibold text-gray-800">Reset to Current Month (Remove Test Data)</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Deletes all MonthlyPoints rows from other months, clears all point history, resets all
+          rankings, and sets every employee/TL back to <strong>0 points</strong> — keeping only the current
+          month. Use this once before going live to wipe testing data.
+        </p>
+        {!showCleanConfirm ? (
+          <button
+            onClick={() => setShowCleanConfirm(true)}
+            disabled={cleaning}
+            className="flex items-center gap-2 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={18} /> Clear Test Data & Reset to Current Month
+          </button>
+        ) : (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <p className="font-semibold text-orange-800 mb-1 flex items-center gap-2">
+              <AlertTriangle size={18} /> Are you sure?
+            </p>
+            <p className="text-sm text-orange-600 mb-3">
+              This will permanently delete all test months, all point history, all rankings, and reset
+              every user's points to 0. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCleanTestData}
+                disabled={cleaning}
+                className="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+              >
+                {cleaning ? 'Cleaning…' : 'Yes, Wipe Test Data'}
+              </button>
+              <button
+                onClick={() => setShowCleanConfirm(false)}
                 className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel

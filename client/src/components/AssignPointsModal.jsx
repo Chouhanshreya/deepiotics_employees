@@ -4,21 +4,37 @@ import { Award, X, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronUp, Tren
 import Avatar from './Avatar';
 
 const POSITIVE_CATEGORIES = [
-  { label: 'Quality of Work',         icon: '⭐', desc: 'High quality output and attention to detail' },
+  { label: 'Quality of Work',          icon: '⭐', desc: 'High quality output and attention to detail' },
   { label: 'Timely Delivery',          icon: '⏰', desc: 'Delivered work on time or ahead of schedule' },
   { label: 'Client Feedback',          icon: '💬', desc: 'Positive feedback received from client' },
   { label: 'Communication & Reporting',icon: '📊', desc: 'Clear, proactive communication and reporting' },
   { label: 'Complaint History',        icon: '✅', desc: 'Clean record with no complaints' },
+  { label: 'Problem Solving',          icon: '🧠', desc: 'Identified and resolved a complex issue independently' },
+  { label: 'Initiative & Ownership',   icon: '🙋', desc: 'Took ownership beyond assigned responsibilities' },
+  { label: 'Knowledge Sharing',        icon: '📚', desc: 'Helped teammates or shared useful knowledge' },
+  { label: 'Process Improvement',      icon: '🔧', desc: 'Suggested or implemented a workflow improvement' },
+  { label: 'Consistency & Reliability',icon: '🔒', desc: 'Consistently dependable across tasks and deadlines' },
+  { label: 'Positive Attitude',        icon: '😊', desc: 'Maintained a constructive and motivating attitude' },
+  { label: 'Extra Effort',             icon: '🔥', desc: 'Went above and beyond on a task or project' },
+  { label: 'Mentorship',               icon: '🎓', desc: 'Supported or mentored a junior team member' },
   { label: 'General',                  icon: '🏅', desc: 'General recognition' },
 ];
 
 const TL_POSITIVE_CATEGORIES = [
-  { label: 'Team Delivery Performance', icon: '🚀', desc: "Team consistently delivers on time" },
-  { label: 'Team Quality Performance',  icon: '⭐', desc: "Team maintains high quality output" },
-  { label: 'Client Satisfaction',       icon: '💬', desc: "Clients are satisfied with team results" },
-  { label: 'Team Management & Reporting', icon: '📊', desc: "Effective team management and reporting" },
-  { label: 'Low Team Complaint Rate',   icon: '✅', desc: "Team has minimal client complaints" },
-  { label: 'General',                   icon: '🏅', desc: 'General recognition' },
+  { label: 'Team Delivery Performance',   icon: '🚀', desc: 'Team consistently delivers on time' },
+  { label: 'Team Quality Performance',    icon: '⭐', desc: 'Team maintains high quality output' },
+  { label: 'Client Satisfaction',         icon: '💬', desc: 'Clients are satisfied with team results' },
+  { label: 'Team Management & Reporting', icon: '📊', desc: 'Effective team management and reporting' },
+  { label: 'Low Team Complaint Rate',     icon: '✅', desc: 'Team has minimal client complaints' },
+  { label: 'Team Morale & Culture',       icon: '🤝', desc: 'Fostered a positive and collaborative team environment' },
+  { label: 'Proactive Risk Management',   icon: '🛡️', desc: 'Identified and mitigated risks before escalation' },
+  { label: 'Process Improvement',         icon: '🔧', desc: 'Introduced improvements to team workflow or processes' },
+  { label: 'Cross-Team Collaboration',    icon: '🔗', desc: 'Successfully collaborated with other teams or departments' },
+  { label: 'Team Skill Development',      icon: '🎓', desc: 'Actively coached or upskilled team members' },
+  { label: 'Stakeholder Communication',   icon: '📣', desc: 'Clear and timely communication with stakeholders' },
+  { label: 'Consistent Team Output',      icon: '🔒', desc: 'Team maintained steady performance over the period' },
+  { label: 'Innovation & Initiative',     icon: '💡', desc: 'Drove innovative ideas or new initiatives within the team' },
+  { label: 'General',                     icon: '🏅', desc: 'General recognition' },
 ];
 
 const NEGATIVE_CATEGORIES = [
@@ -43,8 +59,7 @@ const TL_NEGATIVE_CATEGORIES = [
   { label: 'Team Client Escalation',       icon: '🔺', desc: 'Client escalation to higher management' },
 ];
 
-const QUICK_POSITIVE = [10, 25, 50, 100, 200];
-const QUICK_NEGATIVE = [-10, -25, -50, -100];
+
 
 const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
   const [type, setType] = useState('positive'); // 'positive' | 'negative'
@@ -61,7 +76,6 @@ const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
   const categories = type === 'positive'
     ? (isTLRecipient ? TL_POSITIVE_CATEGORIES : POSITIVE_CATEGORIES)
     : NEGATIVE_CATEGORIES;
-  const quickPoints = type === 'positive' ? QUICK_POSITIVE : QUICK_NEGATIVE;
 
   const handleTypeSwitch = (newType) => {
     setType(newType);
@@ -69,9 +83,7 @@ const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
     setCategory('');
   };
 
-  const handleQuick = (val) => setPoints(String(Math.abs(val)));
-
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     const absPoints = parseInt(points, 10);
     if (!absPoints || absPoints <= 0) return;
@@ -120,7 +132,7 @@ const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
 
         {/* Header */}
         <div className={`p-5 flex items-center justify-between ${type === 'positive' ? 'bg-gradient-to-r from-amber-500 to-orange-400' : 'bg-gradient-to-r from-red-500 to-rose-500'}`}>
@@ -138,7 +150,7 @@ const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
           </button>
         </div>
 
-        <div className="p-5">
+        <div className="p-5 overflow-y-auto flex-1">
 
           {/* Status */}
           {status && (
@@ -179,13 +191,14 @@ const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
                   : '⚠️ Negative Factor'}
                 <span className="text-red-400 ml-1">*</span>
               </label>
-              <div className="grid grid-cols-1 gap-2 max-h-44 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
                 {categories.map(cat => (
                   <button
                     key={cat.label}
                     type="button"
+                    title={cat.desc}
                     onClick={() => setCategory(cat.label)}
-                    className={`flex items-start gap-3 px-4 py-2.5 rounded-xl border text-left transition-all text-sm
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all text-sm
                       ${category === cat.label
                         ? type === 'positive'
                           ? 'bg-amber-50 border-amber-400 text-amber-800 ring-2 ring-amber-200'
@@ -193,37 +206,18 @@ const AssignPointsModal = ({ employee, onClose, onSuccess }) => {
                         : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300'
                       }`}
                   >
-                    <span className="text-base shrink-0 mt-0.5">{cat.icon}</span>
-                    <div>
-                      <p className="font-semibold">{cat.label}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{cat.desc}</p>
-                    </div>
+                    <span className="text-base shrink-0">{cat.icon}</span>
+                    <p className="font-semibold leading-tight">{cat.label}</p>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Quick select + input */}
+            {/* Points input */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
                 Points (1–1000)<span className="text-red-400 ml-1">*</span>
               </label>
-              <div className="flex gap-2 mb-2 flex-wrap">
-                {quickPoints.map(val => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => handleQuick(val)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-all
-                      ${pts === Math.abs(val)
-                        ? type === 'positive' ? 'bg-amber-500 text-white border-amber-500' : 'bg-red-500 text-white border-red-500'
-                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400'
-                      }`}
-                  >
-                    {type === 'negative' ? '-' : '+'}{Math.abs(val)}
-                  </button>
-                ))}
-              </div>
               <div className="relative">
                 <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-black text-lg ${type === 'negative' ? 'text-red-400' : 'text-amber-400'}`}>
                   {type === 'negative' ? '−' : '+'}

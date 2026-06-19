@@ -305,63 +305,6 @@ exports.assignPoints = async (req, res) => {
       assignedBy: req.user._id
     });
 
-    // --- Cascade 20% penalty on negative deductions ---
-    const CASCADE_PERCENT = 0.20;
-    const tlCategoryMap = {
-      'Client Complaint':        'Team Client Complaint',
-      'Delayed Delivery':        'Team Delayed Delivery',
-      'Poor Communication':      'Team Poor Communication',
-      'No Updates Provided':     'Team No Updates Provided',
-      'Incomplete Work':         'Team Incomplete Work',
-      'Repeated Mistakes':       'Team Repeated Mistakes',
-      'Client Comments Ignored': 'Team Client Comments Ignored',
-      'Client Escalation':       'Team Client Escalation',
-    };
-
-    if (pointsToAdd < 0) {
-      const cascadeAmt = -Math.round(Math.abs(pointsToAdd) * CASCADE_PERCENT); // always negative
-
-      if (targetUser.role === 'Employee' && targetUser.teamLead) {
-        // Employee deducted → TL gets 20% of the deduction
-        const tlUser = await User.findById(targetUser.teamLead);
-        if (tlUser && tlUser.role === 'TL') {
-          tlUser.points = (parseInt(tlUser.points, 10) || 0) + cascadeAmt;
-          await tlUser.save();
-
-          await PointHistory.create({
-            employee: tlUser._id,
-            points: cascadeAmt,
-            note: `Auto 20% penalty: team member ${targetUser.name} was deducted ${pointsToAdd} pts.${note ? ` Reason: ${note}` : ''}`,
-            category: tlCategoryMap[category] || 'General',
-            assignedBy: req.user._id
-          });
-
-          console.log(`⚠️  Cascade: TL ${tlUser.name} deducted ${cascadeAmt} pts (20% of ${pointsToAdd} from ${targetUser.name})`);
-        }
-
-      } else if (targetUser.role === 'TL') {
-        // TL deducted → every employee under this TL gets 20% of the deduction
-        const teamMembers = await User.find({ teamLead: targetUser._id, role: 'Employee' });
-
-        for (const emp of teamMembers) {
-          emp.points = (parseInt(emp.points, 10) || 0) + cascadeAmt;
-          await emp.save();
-
-          await PointHistory.create({
-            employee: emp._id,
-            points: cascadeAmt,
-            note: `Auto 20% penalty: TL ${targetUser.name} was deducted ${pointsToAdd} pts.${note ? ` Reason: ${note}` : ''}`,
-            category: category || 'General',
-            assignedBy: req.user._id
-          });
-        }
-
-        if (teamMembers.length > 0) {
-          console.log(`⚠️  Cascade: ${teamMembers.length} employees under TL ${targetUser.name} each deducted ${cascadeAmt} pts (20% of ${pointsToAdd})`);
-        }
-      }
-    }
-    // ----------------------------------------------------
 
     const updatedUser = await User.findById(targetUser._id)
       .select('-password')

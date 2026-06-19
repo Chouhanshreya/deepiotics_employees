@@ -8,7 +8,8 @@ const {
   resetMonth,
   getArchives,
   getArchiveById,
-  closeMonthAndStartNew
+  closeMonthAndStartNew,
+  cleanTestData
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -27,5 +28,8 @@ router.get('/archives/:id', protect, authorize('Admin'), getArchiveById);
 
 // New: close current month + start next month in the monthlyPoints system
 router.post('/close-month', protect, authorize('Admin'), closeMonthAndStartNew);
+
+// Clean test data — wipe old months, rankings, history, reset points to 0
+router.post('/clean-test-data', protect, authorize('Admin'), cleanTestData);
 
 module.exports = router;

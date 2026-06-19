@@ -379,3 +379,59 @@ exports.closeMonthAndStartNew = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Clean test data — delete all MonthlyPoints/Rankings except current month,
+//          reset all user points to 0, and delete all PointHistory entries.
+// @route   POST /api/admin/clean-test-data
+// @access  Private (Admin)
+exports.cleanTestData = async (req, res) => {
+  try {
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+
+    // 1. Delete all MonthlyPoints rows that are NOT the current month
+    const mpResult = await MonthlyPoints.deleteMany({
+      $or: [{ month: { $ne: month } }, { year: { $ne: year } }]
+    });
+
+    // 2. Upsert current-month rows for every employee/TL (points reset to 0)
+    const users = await User.find({ role: { $in: ['Employee', 'TL'] } }).select('_id');
+    for (const u of users) {
+      await MonthlyPoints.findOneAndUpdate(
+        { employeeId: u._id, month, year },
+        { $set: { points: 0 } },
+        { upsert: true, new: true }
+      );
+    }
+
+    // 3. Delete all Rankings (test rankings from simulated months)
+    const rankResult = await Ranking.deleteMany({});
+
+    // 4. Delete all PointHistory (test entries)
+    const phResult = await PointHistory.deleteMany({});
+
+    // 5. Reset all user points to 0
+    const userResult = await User.updateMany(
+      { role: { $in: ['Employee', 'TL'] } },
+      { $set: { points: 0 } }
+    );
+
+    console.log(`🧹 Test data cleaned: ${mpResult.deletedCount} old MonthlyPoints, ${rankResult.deletedCount} Rankings, ${phResult.deletedCount} PointHistory deleted. ${userResult.modifiedCount} users reset to 0 pts.`);
+
+    res.json({
+      message: `✅ Test data cleared. All points reset to 0 for ${month}/${year}. Ready for deployment.`,
+      details: {
+        oldMonthlyPointsDeleted: mpResult.deletedCount,
+        currentMonthRowsEnsured: users.length,
+        rankingsDeleted: rankResult.deletedCount,
+        pointHistoryDeleted: phResult.deletedCount,
+        usersReset: userResult.modifiedCount,
+        currentMonth: `${month}/${year}`,
+      }
+    });
+  } catch (error) {
+    console.error('cleanTestData error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

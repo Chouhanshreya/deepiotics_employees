@@ -85,5 +85,6 @@ export const resetMonth = () => api.post('/admin/reset-month');
 export const getArchives = () => api.get('/admin/archives');
 export const getArchiveById = (id) => api.get(`/admin/archives/${id}`);
 export const closeMonthAndStartNew = () => api.post('/admin/close-month');
+export const cleanTestData = () => api.post('/admin/clean-test-data');
 
 export default api;
