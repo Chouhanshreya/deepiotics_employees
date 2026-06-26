@@ -170,7 +170,16 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const userId = user._id;
+
+    // Delete the user first
     await user.deleteOne();
+
+    // Clean up all associated data so no orphaned "Unknown" records appear
+    await Promise.all([
+      MonthlyPoints.deleteMany({ employeeId: userId }),
+      PointHistory.deleteMany({ employee: userId }),
+    ]);
 
     res.json({ message: 'User removed' });
   } catch (error) {
@@ -276,12 +285,14 @@ exports.assignPoints = async (req, res) => {
       return res.status(403).json({ message: 'Admin cannot assign points to another Admin' });
     }
 
-    // Update employee points (can go negative for deductions)
-    const currentPoints = parseInt(targetUser.points, 10) || 0;
-    targetUser.points = currentPoints + pointsToAdd;
-    await targetUser.save();
+    // Use atomic $inc to avoid race conditions and floating-point drift
+    const updatedUser = await User.findByIdAndUpdate(
+      targetUser._id,
+      { $inc: { points: pointsToAdd } },
+      { new: true }
+    ).select('-password').populate('teamLead', 'name email');
 
-    console.log(`✅ ${req.user.name} (${req.user.role}) assigned ${pointsToAdd} pts [${category || 'General'}] to ${targetUser.name}. Total: ${targetUser.points}`);
+    console.log(`✅ ${req.user.name} (${req.user.role}) assigned ${pointsToAdd} pts [${category || 'General'}] to ${targetUser.name}. Total: ${updatedUser.points}`);
 
     // Also update MonthlyPoints for the current month (upsert — safe if row doesn't exist yet)
     const now   = new Date();
@@ -304,11 +315,6 @@ exports.assignPoints = async (req, res) => {
       category: category || 'General',
       assignedBy: req.user._id
     });
-
-
-    const updatedUser = await User.findById(targetUser._id)
-      .select('-password')
-      .populate('teamLead', 'name email');
 
     res.json(updatedUser);
   } catch (error) {

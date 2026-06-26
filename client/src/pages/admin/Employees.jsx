@@ -64,10 +64,10 @@ const Employees = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">👥 Employees</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">👥 Employees</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filteredEmployees.length} user{filteredEmployees.length !== 1 ? 's' : ''} shown
           </p>
@@ -75,7 +75,7 @@ const Employees = () => {
         {isAdmin && (
           <button
             onClick={() => navigate('/create-employee')}
-            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors font-medium"
+            className="bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm self-start sm:self-auto"
           >
             + Add Employee
           </button>
@@ -83,7 +83,7 @@ const Employees = () => {
       </div>
 
       {/* Search + Filter */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -91,7 +91,7 @@ const Employees = () => {
             placeholder="Search by name, email, or department..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           />
         </div>
         {isAdmin && (
@@ -111,38 +111,38 @@ const Employees = () => {
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[540px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Employee</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Department</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Team Lead</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tier</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Points</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
+                <th className="px-4 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700">Employee</th>
+                <th className="px-4 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Role</th>
+                <th className="px-4 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden md:table-cell">Department</th>
+                <th className="px-4 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden lg:table-cell">Team Lead</th>
+                <th className="px-4 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Tier</th>
+                <th className="px-4 sm:px-6 py-4 text-right text-sm font-semibold text-gray-700">Points</th>
+                <th className="px-4 sm:px-6 py-4 text-center text-sm font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredEmployees.map((employee) => (
                 <tr key={employee._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
+                  <td className="px-4 sm:px-6 py-3 sm:py-4">
                     <div
                       className="flex items-center gap-3 cursor-pointer group"
                       onClick={() => setSelectedUserId(employee._id)}
                     >
                       <Avatar name={employee.name} size="sm" />
-                      <div>
-                        <p className="font-semibold text-gray-800 flex items-center gap-1 group-hover:text-primary transition-colors">
-                          {employee.name}
-                          {employee.isBestEmployee && <span className="text-xs">🏅</span>}
-                          {employee.isBestTL && <span className="text-xs">👑</span>}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800 flex items-center gap-1 group-hover:text-primary transition-colors text-sm">
+                          <span className="truncate">{employee.name}</span>
+                          {employee.isBestEmployee && <span className="text-xs shrink-0">🏅</span>}
+                          {employee.isBestTL && <span className="text-xs shrink-0">👑</span>}
                         </p>
-                        <p className="text-sm text-gray-400">{employee.email}</p>
+                        <p className="text-xs text-gray-400 truncate">{employee.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
                       ${employee.role === 'Admin' ? 'bg-red-100 text-red-700' :
                         employee.role === 'TL' ? 'bg-purple-100 text-purple-700' :
@@ -150,19 +150,19 @@ const Employees = () => {
                       {employee.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">{employee.department}</td>
-                  <td className="px-6 py-4 text-gray-500 text-sm">
+                  <td className="px-4 sm:px-6 py-3 sm:py-4 text-gray-600 text-sm hidden md:table-cell">{employee.department}</td>
+                  <td className="px-4 sm:px-6 py-3 sm:py-4 text-gray-500 text-sm hidden lg:table-cell">
                     {employee.teamLead?.name || <span className="text-gray-300">—</span>}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                     <TierBadge tier={employee.tier} />
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className={`text-lg font-black ${employee.points < 0 ? 'text-red-500' : 'text-primary'}`}>
+                  <td className="px-4 sm:px-6 py-3 sm:py-4 text-right">
+                    <span className={`text-base font-black ${employee.points < 0 ? 'text-red-500' : 'text-primary'}`}>
                       {employee.points}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 sm:px-6 py-3 sm:py-4">
                     <div className="flex items-center justify-center gap-1">
                       {isAdmin && (
                         <>
@@ -171,21 +171,21 @@ const Employees = () => {
                             className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
                             title="View Profile"
                           >
-                            <Eye size={17} />
+                            <Eye size={16} />
                           </button>
                           <button
                             onClick={() => navigate(`/employees/${employee._id}/edit`)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit"
                           >
-                            <Edit2 size={17} />
+                            <Edit2 size={16} />
                           </button>
                           <button
                             onClick={() => handleDelete(employee._id, employee.name)}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete"
                           >
-                            <Trash2 size={17} />
+                            <Trash2 size={16} />
                           </button>
                         </>
                       )}

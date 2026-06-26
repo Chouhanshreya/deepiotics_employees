@@ -36,6 +36,7 @@ const PointManagement = () => {
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [search, setSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('All');
+  const [roleFilter, setRoleFilter] = useState('All'); // 'All' | 'TL' | 'Employee'
   const [loadingEmployees, setLoadingEmployees] = useState(true);
 
   // Selected employee for modal
@@ -57,7 +58,27 @@ const PointManagement = () => {
 
   useEffect(() => {
     let filtered = allEmployees;
-    if (teamFilter !== 'All') filtered = filtered.filter(e => e.teamLead?._id === teamFilter || e.teamLead?.toString() === teamFilter);
+
+    // Role filter: TLs only or Employees only
+    if (roleFilter === 'TL') {
+      filtered = filtered.filter(e => e.role === 'TL');
+    } else if (roleFilter === 'Employee') {
+      filtered = filtered.filter(e => e.role === 'Employee');
+      // Apply team filter only when showing employees
+      if (teamFilter !== 'All') {
+        filtered = filtered.filter(e =>
+          e.teamLead?._id === teamFilter || e.teamLead?.toString() === teamFilter
+        );
+      }
+    } else {
+      // 'All' role — still allow team filter
+      if (teamFilter !== 'All') {
+        filtered = filtered.filter(e =>
+          e.teamLead?._id === teamFilter || e.teamLead?.toString() === teamFilter
+        );
+      }
+    }
+
     if (search) {
       filtered = filtered.filter(e =>
         e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -65,7 +86,7 @@ const PointManagement = () => {
       );
     }
     setFilteredEmployees(filtered);
-  }, [search, teamFilter, allEmployees]);
+  }, [search, teamFilter, roleFilter, allEmployees]);
 
   const fetchEmployees = async () => {
     try {
@@ -136,9 +157,9 @@ const PointManagement = () => {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">🏆 Point Management</h1>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">🏆 Point Management</h1>
         <p className="text-gray-500 text-sm mt-1">
           {isAdmin ? 'Assign and track points for all employees' : 'Assign and track points for your team'}
         </p>
@@ -189,28 +210,70 @@ const PointManagement = () => {
 
       {/* Employee Grid */}
       <div className="bg-white rounded-xl border border-gray-200 mb-6">
-        <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search employee or department..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            />
+        <div className="p-5 border-b border-gray-100 flex flex-col gap-3">
+          {/* Row 1: Search + Team dropdown */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search employee or department..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            {isAdmin && tls.length > 0 && roleFilter !== 'TL' && (
+              <select
+                value={teamFilter}
+                onChange={e => setTeamFilter(e.target.value)}
+                className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 min-w-[160px]"
+              >
+                <option value="All">All Teams</option>
+                {tls.map(tl => (
+                  <option key={tl._id} value={tl._id}>{tl.name}'s Team</option>
+                ))}
+              </select>
+            )}
           </div>
-          {isAdmin && tls.length > 0 && (
-            <select
-              value={teamFilter}
-              onChange={e => setTeamFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-            >
-              <option value="All">All Teams</option>
-              {tls.map(tl => (
-                <option key={tl._id} value={tl._id}>{tl.name}'s Team</option>
+
+          {/* Row 2: Role filter pills (Admin only) */}
+          {isAdmin && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide mr-1">
+                <Filter size={12} className="inline mr-1" />Show:
+              </span>
+              {[
+                { value: 'All',      label: '👥 All',       active: 'bg-gray-700 text-white border-gray-700' },
+                { value: 'TL',       label: '👑 TLs Only',  active: 'bg-purple-600 text-white border-purple-600' },
+                { value: 'Employee', label: '🧑‍💼 Employees Only', active: 'bg-blue-500 text-white border-blue-500' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setRoleFilter(opt.value);
+                    // Reset team filter when switching to TL-only view
+                    if (opt.value === 'TL') setTeamFilter('All');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all
+                    ${roleFilter === opt.value
+                      ? opt.active
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                >
+                  {opt.label}
+                </button>
               ))}
-            </select>
+
+              {/* Active filter summary badge */}
+              {(roleFilter !== 'All' || teamFilter !== 'All') && (
+                <button
+                  onClick={() => { setRoleFilter('All'); setTeamFilter('All'); setSearch(''); }}
+                  className="ml-auto text-xs text-gray-400 hover:text-red-500 font-medium transition-colors flex items-center gap-1"
+                >
+                  ✕ Clear filters
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -220,15 +283,15 @@ const PointManagement = () => {
           <div className="p-12 text-center text-gray-400">No employees found</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[520px]">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Team Lead</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tier</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Points</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Employee</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Department</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Team Lead</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Tier</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Points</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -236,35 +299,35 @@ const PointManagement = () => {
                   .sort((a, b) => b.points - a.points)
                   .map((emp, idx) => (
                     <tr key={emp._id} className="hover:bg-amber-50/30 transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold text-gray-300 w-5">#{idx + 1}</span>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-300 w-5 shrink-0">#{idx + 1}</span>
                           <Avatar name={emp.name} size="sm" />
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-semibold text-gray-800 text-sm flex items-center gap-1">
-                              {emp.name}
+                              <span className="truncate">{emp.name}</span>
                               {emp.role === 'TL' && (
-                                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">TL</span>
+                                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium shrink-0">TL</span>
                               )}
                             </p>
-                            <p className="text-xs text-gray-400">{emp.email}</p>
+                            <p className="text-xs text-gray-400 truncate">{emp.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-sm text-gray-600">{emp.department}</td>
-                      <td className="px-5 py-3 text-sm text-gray-500">{emp.teamLead?.name || '—'}</td>
-                      <td className="px-5 py-3"><TierBadge tier={emp.tier} /></td>
-                      <td className="px-5 py-3 text-right">
-                        <span className={`text-lg font-black ${emp.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                      <td className="px-4 py-3 text-sm text-gray-600 hidden sm:table-cell">{emp.department}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{emp.teamLead?.name || '—'}</td>
+                      <td className="px-4 py-3 hidden sm:table-cell"><TierBadge tier={emp.tier} /></td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`text-base font-black ${emp.points < 0 ? 'text-red-500' : 'text-amber-600'}`}>
                           {emp.points}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-4 py-3 text-center">
                         <button
                           onClick={() => setSelectedEmployee(emp)}
-                          className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
                         >
-                          <Award size={14} /> Assign
+                          <Award size={13} /> Assign
                         </button>
                       </td>
                     </tr>

@@ -170,7 +170,7 @@ const Home = () => {
   const isBestTL = bestPerformers.bestTL?._id === user?._id;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 w-full">
 
       {/* Congratulations modal — shown once per session when user wins best award */}
       {congratsModal && (
@@ -245,7 +245,7 @@ const Home = () => {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {/* Points */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
@@ -401,7 +401,7 @@ const Home = () => {
         ) : (
           <div className="divide-y divide-gray-50">
             {pointHistory.map((entry) => (
-              <div key={entry._id} className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
+              <div key={entry._id} className="flex items-start gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-xl shrink-0 mt-0.5">
                   {categoryIcon(entry.category)}
                 </div>

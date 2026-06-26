@@ -128,20 +128,20 @@ const Workflow = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">📋 Workflow</h1>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">📋 Workflow</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+          className="bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 self-start sm:self-auto text-sm font-medium"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           Create Task
         </button>
       </div>
 
       {/* Kanban Board */}
-      <div className="flex gap-6 overflow-x-auto pb-4">
+      <div className="flex gap-4 sm:gap-6 overflow-x-auto pb-4">
         <TaskColumn status="To Do" title="📝 To Do" color="bg-gray-600" />
         <TaskColumn status="In Progress" title="⚙️ In Progress" color="bg-blue-600" />
         <TaskColumn status="Done" title="✅ Done" color="bg-teal-600" />
@@ -149,8 +149,8 @@ const Workflow = () => {
 
       {/* Create Task Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Create New Task</h2>
             
             <form onSubmit={handleCreateTask}>
@@ -163,7 +163,7 @@ const Workflow = () => {
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 />
               </div>
 
@@ -175,7 +175,7 @@ const Workflow = () => {
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                   rows="3"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm resize-none"
                 />
               </div>
 
@@ -187,7 +187,7 @@ const Workflow = () => {
                   value={newTask.assignedTo}
                   onChange={(e) => setNewTask({ ...newTask, assignedTo: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 >
                   <option value="">Select employee</option>
                   {employees.map(emp => (
@@ -205,7 +205,7 @@ const Workflow = () => {
                   value={newTask.points}
                   onChange={(e) => setNewTask({ ...newTask, points: parseInt(e.target.value) })}
                   min="0"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                 />
               </div>
 
@@ -216,13 +216,13 @@ const Workflow = () => {
                     setShowModal(false);
                     setNewTask({ title: '', description: '', assignedTo: '', points: 0 });
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 text-sm font-medium"
                 >
                   Create
                 </button>

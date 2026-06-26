@@ -25,7 +25,9 @@ const buildTopPerformersPipeline = (N, roleFilter) => {
     { $match: { monthIdx: { $gte: minIdx, $lte: maxIdx } } },
     { $group: { _id: '$employeeId', totalPoints: { $sum: '$points' }, monthsWithData: { $sum: 1 } } },
     { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+    // Only keep records where the user still exists (removes deleted/unknown users)
+    { $match: { 'user.0': { $exists: true } } },
+    { $unwind: '$user' },
     ...(roleFilter ? [{ $match: { 'user.role': roleFilter } }] : []),
     { $project: {
         _id: 0,
@@ -105,22 +107,24 @@ exports.getAnalysis = async (req, res) => {
       // 4. Join employee info from the users collection
       {
         $lookup: {
-          from: 'users',          // MongoDB collection name (Mongoose pluralises 'User' → 'users')
+          from: 'users',
           localField: '_id',
           foreignField: '_id',
           as: 'employee'
         }
       },
 
-      // 5. Flatten the joined array (each employee has exactly one User doc)
+      // 5. Drop records where the user no longer exists (deleted users show as "Unknown")
       {
-        $unwind: {
-          path: '$employee',
-          preserveNullAndEmptyArrays: true  // keep rows even if user was deleted
-        }
+        $match: { 'employee.0': { $exists: true } }
       },
 
-      // 6. Shape the output — drop internal fields, round avg to 2 dp
+      // 6. Flatten the joined array (each employee has exactly one User doc)
+      {
+        $unwind: '$employee'
+      },
+
+      // 7. Shape the output — drop internal fields, round avg to 2 dp
       {
         $project: {
           _id: 0,
@@ -134,7 +138,7 @@ exports.getAnalysis = async (req, res) => {
         }
       },
 
-      // 7. Best performers first
+      // 8. Best performers first
       {
         $sort: { totalPoints: -1 }
       }

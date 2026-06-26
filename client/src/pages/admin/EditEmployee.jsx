@@ -83,10 +83,10 @@ const EditEmployee = () => {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">✏️ Edit Employee</h1>
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">✏️ Edit Employee</h1>
 
-      <div className="bg-white p-8 rounded-lg border border-gray-200">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
             {error}

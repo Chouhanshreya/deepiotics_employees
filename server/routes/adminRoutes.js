@@ -9,7 +9,8 @@ const {
   getArchives,
   getArchiveById,
   closeMonthAndStartNew,
-  cleanTestData
+  cleanTestData,
+  reconcilePoints
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -31,5 +32,8 @@ router.post('/close-month', protect, authorize('Admin'), closeMonthAndStartNew);
 
 // Clean test data — wipe old months, rankings, history, reset points to 0
 router.post('/clean-test-data', protect, authorize('Admin'), cleanTestData);
+
+// Fix doubled/incorrect User.points by recalculating from PointHistory
+router.post('/reconcile-points', protect, authorize('Admin'), reconcilePoints);
 
 module.exports = router;

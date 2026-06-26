@@ -71,24 +71,24 @@ const Overview = () => {
   const timeStr = now.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 w-full">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black text-gray-800">Good {now.getHours() < 12 ? 'Morning' : now.getHours() < 18 ? 'Afternoon' : 'Evening'}, {user?.name?.split(' ')[0]} 👋</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-800">Good {now.getHours() < 12 ? 'Morning' : now.getHours() < 18 ? 'Afternoon' : 'Evening'}, {user?.name?.split(' ')[0]} 👋</h1>
           <p className="text-gray-400 text-sm mt-1">{timeStr} · Admin Dashboard</p>
         </div>
         <button
           onClick={() => navigate('/point-management')}
-          className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-primary text-white px-4 sm:px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-colors shadow-sm self-start sm:self-auto"
         >
           <Award size={16} /> Assign Points <ArrowRight size={14} />
         </button>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {[
           { icon: Users, label: 'Employees', value: overview.totalEmployees, bg: 'bg-blue-50', iconBg: 'bg-blue-100', color: 'text-blue-600' },
           { icon: Star, label: 'Team Leads', value: overview.totalTLs, bg: 'bg-purple-50', iconBg: 'bg-purple-100', color: 'text-purple-600' },

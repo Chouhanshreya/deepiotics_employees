@@ -10,8 +10,9 @@ import {
   closeMonthAndStartNew,
   cleanTestData
 } from '../../utils/api';
+import api from '../../utils/api';
 import Avatar from '../../components/Avatar';
-import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle, Calendar, ArrowRight } from 'lucide-react';
+import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle, Calendar, ArrowRight, Wrench } from 'lucide-react';
 
 const Settings = () => {
   const { user } = useAuth();
@@ -22,6 +23,8 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [cleaning, setCleaning] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState(null);
   const [showCleanConfirm, setShowCleanConfirm] = useState(false);
   const [closing, setClosing] = useState(false);
   const [closeResult, setCloseResult] = useState(null);
@@ -134,6 +137,21 @@ const Settings = () => {
     }
   };
 
+  const handleReconcilePoints = async () => {
+    setReconciling(true);
+    setReconcileResult(null);
+    try {
+      const res = await api.post('/admin/reconcile-points');
+      setReconcileResult(res.data);
+      showMsg('success', res.data.message);
+      fetchData();
+    } catch (error) {
+      showMsg('error', error.response?.data?.message || 'Failed to reconcile points');
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   const monthName = (num) => {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return months[num - 1] || num;
@@ -148,8 +166,8 @@ const Settings = () => {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">⚙️ Admin Settings</h1>
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">⚙️ Admin Settings</h1>
 
       {/* Notification */}
       {message && (
@@ -187,18 +205,18 @@ const Settings = () => {
       )}
 
       {/* Declare Best Employee */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 mb-6">
         <div className="flex items-center gap-3 mb-5">
           <Trophy className="text-amber-500" size={24} />
-          <h2 className="text-xl font-semibold text-gray-800">Declare Best Employee of the Month</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Declare Best Employee of the Month</h2>
         </div>
-        <div className="flex gap-3 items-end">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Employee</label>
             <select
               value={selectedBestEmployee}
               onChange={(e) => setSelectedBestEmployee(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white text-sm"
             >
               <option value="">-- Choose an employee --</option>
               {employees
@@ -213,7 +231,7 @@ const Settings = () => {
           <button
             onClick={handleDeclareBestEmployee}
             disabled={!selectedBestEmployee || declaring === 'employee'}
-            className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="px-6 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
           >
             {declaring === 'employee' ? 'Declaring...' : 'Declare 🏅'}
           </button>
@@ -221,18 +239,18 @@ const Settings = () => {
       </div>
 
       {/* Declare Best TL */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
+      <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 mb-6">
         <div className="flex items-center gap-3 mb-5">
           <Crown className="text-purple-500" size={24} />
-          <h2 className="text-xl font-semibold text-gray-800">Declare Best TL of the Month</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Declare Best TL of the Month</h2>
         </div>
-        <div className="flex gap-3 items-end">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Team Lead</label>
             <select
               value={selectedBestTL}
               onChange={(e) => setSelectedBestTL(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white text-sm"
             >
               <option value="">-- Choose a TL --</option>
               {tls.map(tl => (
@@ -245,7 +263,7 @@ const Settings = () => {
           <button
             onClick={handleDeclareBestTL}
             disabled={!selectedBestTL || declaring === 'tl'}
-            className="px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
           >
             {declaring === 'tl' ? 'Declaring...' : 'Declare 👑'}
           </button>
@@ -368,6 +386,45 @@ const Settings = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Fix Doubled Points (Reconcile) ── */}
+      <div className="bg-white p-6 rounded-2xl border-2 border-blue-200 mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Wrench className="text-blue-500" size={24} />
+          <h2 className="text-xl font-semibold text-gray-800">Fix Points (Reconcile)</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Recalculates every employee's point total from the actual point history records.
+          Use this if points look doubled or incorrect — it sets the correct value without
+          deleting any data.
+        </p>
+
+        {reconcileResult && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+            <p className="font-bold text-blue-700 mb-2">{reconcileResult.message}</p>
+            {reconcileResult.corrected?.length > 0 ? (
+              <ul className="space-y-1">
+                {reconcileResult.corrected.map((r, i) => (
+                  <li key={i} className="text-blue-600">
+                    {r.name}: <span className="line-through text-red-400">{r.was} pts</span> → <span className="font-bold text-green-600">{r.now} pts</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-blue-600">All points were already correct.</p>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={handleReconcilePoints}
+          disabled={reconciling}
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+        >
+          <Wrench size={18} />
+          {reconciling ? 'Fixing…' : 'Fix All Points Now'}
+        </button>
       </div>
 
       {/* Reset Month */}

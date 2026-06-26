@@ -178,7 +178,7 @@ const MonthlyHistory = () => {
 
   // ─── render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 w-full">
 
       {/* Toast */}
       {toast && (
@@ -190,8 +190,8 @@ const MonthlyHistory = () => {
       {/* ── Header + Month Dropdown ─────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-gray-800 flex items-center gap-2">
-            <Calendar size={28} className="text-indigo-500" />
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-800 flex items-center gap-2">
+            <Calendar size={24} className="text-indigo-500" />
             Monthly History
           </h1>
           <p className="text-gray-400 text-sm mt-1">
@@ -555,16 +555,16 @@ const MonthlyHistory = () => {
             {/* Ranked table */}
             {tableData.length > 0 && (
               <div className="overflow-x-auto mt-2">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[360px]">
                   <thead>
                     <tr className="bg-gray-50 text-left">
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider w-14">Rank</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider w-12">Rank</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Employee</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Role</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Department</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Total Pts</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Avg/Month</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Months</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Role</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Department</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Pts</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right hidden sm:table-cell">Avg/Mo</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right hidden md:table-cell">Months</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -586,38 +586,34 @@ const MonthlyHistory = () => {
                           : isMonthTL   ? 'bg-purple-50 hover:bg-purple-100'
                           : 'hover:bg-gray-50'}`}
                         >
-                          <td className="px-6 py-3 text-center text-base">
+                          <td className="px-4 py-3 text-center text-base">
                             {medals[idx] ?? <span className="text-gray-400 font-semibold text-sm">#{idx+1}</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                               <Avatar name={emp.name || '?'} size="sm" />
-                              <div>
-                                <span className="font-semibold text-gray-800">{emp.name || 'Unknown'}</span>
-                                {isMonthStar && (
-                                  <span className="ml-2 text-xs bg-amber-200 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                                    ⭐ {selectedLabel} Star
-                                  </span>
-                                )}
-                                {isMonthTL && (
-                                  <span className="ml-2 text-xs bg-purple-200 text-purple-800 font-bold px-2 py-0.5 rounded-full">
-                                    👑 {selectedLabel} Best TL
-                                  </span>
-                                )}
+                              <div className="min-w-0">
+                                <p className="font-semibold text-gray-800 text-sm truncate">{emp.name || 'Unknown'}</p>
+                                <div className="flex gap-1 flex-wrap mt-0.5">
+                                  {isMonthStar && (
+                                    <span className="text-xs bg-amber-200 text-amber-800 font-bold px-1.5 py-0.5 rounded-full">⭐ Star</span>
+                                  )}
+                                  {isMonthTL && (
+                                    <span className="text-xs bg-purple-200 text-purple-800 font-bold px-1.5 py-0.5 rounded-full">👑 Best TL</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 hidden sm:table-cell">
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              emp.role === 'TL'
-                                ? 'bg-purple-100 text-purple-600'
-                                : 'bg-blue-100 text-blue-600'
+                              emp.role === 'TL' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'
                             }`}>{emp.role}</span>
                           </td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{emp.department}</td>
-                          <td className="px-4 py-3 text-right font-black text-indigo-600 text-base">{emp.totalPoints}</td>
-                          <td className="px-4 py-3 text-right text-gray-500 text-sm">{emp.avgPoints}</td>
-                          <td className="px-6 py-3 text-right text-gray-400 text-sm">{emp.monthsWithData}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs hidden md:table-cell">{emp.department}</td>
+                          <td className="px-4 py-3 text-right font-black text-indigo-600">{emp.totalPoints}</td>
+                          <td className="px-4 py-3 text-right text-gray-500 text-sm hidden sm:table-cell">{emp.avgPoints}</td>
+                          <td className="px-4 py-3 text-right text-gray-400 text-sm hidden md:table-cell">{emp.monthsWithData}</td>
                         </tr>
                       );
                     })}

@@ -121,7 +121,7 @@ const Stats = () => {
   })?.total || 0;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6 w-full">
 
       {/* Header */}
       <div>
@@ -130,7 +130,7 @@ const Stats = () => {
       </div>
 
       {/* Top stat cards — only real data, no tasks/streak */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
             <Award className="text-amber-600" size={20} />
@@ -192,8 +192,8 @@ const Stats = () => {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center justify-center">
           <h3 className="font-bold text-gray-700 mb-1 self-start">Tier Progress</h3>
           <p className="text-xs text-gray-400 mb-4 self-start">How close to next tier</p>
-          <div className="relative">
-            <ResponsiveContainer width={180} height={180}>
+          <div className="relative w-full flex justify-center">
+            <ResponsiveContainer width="100%" height={180}>
               <RadialBarChart
                 cx="50%" cy="50%"
                 innerRadius="65%" outerRadius="90%"
@@ -267,8 +267,8 @@ const Stats = () => {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h3 className="font-bold text-gray-700 mb-1">Points by Category</h3>
           <p className="text-xs text-gray-400 mb-5">Breakdown of how your points were earned</p>
-          <div className="flex flex-col lg:flex-row items-center gap-8">
-            <ResponsiveContainer width={260} height={260}>
+          <div className="flex flex-col items-center gap-6">
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
                   data={categoryData}

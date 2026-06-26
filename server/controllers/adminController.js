@@ -435,3 +435,72 @@ exports.cleanTestData = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/reconcile-points
+// Fixes User.points by recalculating from PointHistory (ground truth).
+// Use this to fix any doubled/incorrect User.points values.
+// Safe to run multiple times — idempotent.
+// ---------------------------------------------------------------------------
+exports.reconcilePoints = async (req, res) => {
+  try {
+    // Get all non-admin users
+    const allUsers = await User.find({ role: { $in: ['Employee', 'TL'] } }).select('_id name points');
+
+    const results = [];
+
+    for (const u of allUsers) {
+      // Sum all PointHistory entries for this user (net total = positives + negatives)
+      const agg = await PointHistory.aggregate([
+        { $match: { employee: u._id } },
+        { $group: { _id: null, total: { $sum: '$points' } } }
+      ]);
+      const correctPoints = agg[0]?.total ?? 0;
+
+      if (u.points !== correctPoints) {
+        await User.findByIdAndUpdate(u._id, { $set: { points: correctPoints } });
+        results.push({ name: u.name, was: u.points, now: correctPoints });
+        console.log(`🔧 Reconciled ${u.name}: ${u.points} → ${correctPoints}`);
+      }
+    }
+
+    // Also sync MonthlyPoints for the current month to match PointHistory
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+
+    // Start of current month
+    const startOfMonth = new Date(year, month - 1, 1);
+    const startOfNextMonth = new Date(year, month, 1);
+
+    for (const u of allUsers) {
+      const agg = await PointHistory.aggregate([
+        {
+          $match: {
+            employee: u._id,
+            createdAt: { $gte: startOfMonth, $lt: startOfNextMonth }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$points' } } }
+      ]);
+      const correctMonthPoints = agg[0]?.total ?? 0;
+
+      await MonthlyPoints.findOneAndUpdate(
+        { employeeId: u._id, month, year },
+        { $set: { points: correctMonthPoints } },
+        { upsert: true, new: true }
+      );
+    }
+
+    console.log(`✅ Reconciliation complete. ${results.length} users corrected.`);
+
+    res.json({
+      message: `✅ Points reconciled. ${results.length} user(s) corrected.`,
+      corrected: results,
+      currentMonth: `${month}/${year}`
+    });
+  } catch (error) {
+    console.error('reconcilePoints error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

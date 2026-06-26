@@ -65,41 +65,43 @@ const Leaderboard = () => {
   }
 
   const currentUserRank = employeeLeaderboard.findIndex(u => u._id === user?._id) + 1;
+
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">🏆 Leaderboard</h1>
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto w-full">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">🏆 Leaderboard</h1>
 
       {/* Best Performers Banner */}
       {(bestPerformers.bestEmployee || bestPerformers.bestTL) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 sm:mb-8">
           {bestPerformers.bestEmployee && (
-            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-5 flex items-center gap-4">
-              <div className="text-4xl">🏅</div>
-              <div>
+            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4 sm:p-5 flex items-center gap-4">
+              <div className="text-3xl sm:text-4xl shrink-0">🏅</div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Best Employee of the Month</p>
-                <p className="text-lg font-bold text-gray-800 mt-1">{bestPerformers.bestEmployee.name}</p>
-                <p className="text-sm text-gray-600">{bestPerformers.bestEmployee.department} · {bestPerformers.bestEmployee.points} pts</p>
+                <p className="text-base sm:text-lg font-bold text-gray-800 mt-1 truncate">{bestPerformers.bestEmployee.name}</p>
+                <p className="text-sm text-gray-600 truncate">{bestPerformers.bestEmployee.department} · {bestPerformers.bestEmployee.points} pts</p>
               </div>
             </div>
           )}
           {bestPerformers.bestTL && (
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-5 flex items-center gap-4">
-              <div className="text-4xl">👑</div>
-              <div>
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 sm:p-5 flex items-center gap-4">
+              <div className="text-3xl sm:text-4xl shrink-0">👑</div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Best TL of the Month</p>
-                <p className="text-lg font-bold text-gray-800 mt-1">{bestPerformers.bestTL.name}</p>
-                <p className="text-sm text-gray-600">{bestPerformers.bestTL.department}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-800 mt-1 truncate">{bestPerformers.bestTL.name}</p>
+                <p className="text-sm text-gray-600 truncate">{bestPerformers.bestTL.department}</p>
               </div>
             </div>
-          )}        </div>
+          )}
+        </div>
       )}
 
       {/* Progress Card — only for employees */}
       {user?.role === 'Employee' && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
+        <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">Your Progress</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800">Your Progress</h3>
               <p className="text-sm text-gray-600">
                 Current Rank: {currentUserRank > 0 ? `#${currentUserRank}` : 'Unranked'} · Tier: {user?.tier}
               </p>
@@ -111,7 +113,7 @@ const Leaderboard = () => {
             <div>
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">Points to {nextTierInfo.nextTier}</span>
-                <span className="font-semibold text-primary">{nextTierInfo.pointsNeeded} points needed</span>
+                <span className="font-semibold text-primary">{nextTierInfo.pointsNeeded} pts needed</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
@@ -134,23 +136,23 @@ const Leaderboard = () => {
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setActiveTab('employees')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
               activeTab === 'employees'
                 ? 'bg-primary text-white'
                 : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Users size={16} /> Employee Ranking
+            <Users size={16} /> <span className="hidden xs:inline">Employee</span> Ranking
           </button>
           <button
             onClick={() => setActiveTab('tls')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
               activeTab === 'tls'
                 ? 'bg-primary text-white'
                 : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Star size={16} /> TL Ranking
+            <Star size={16} /> <span className="hidden xs:inline">TL</span> Ranking
           </button>
         </div>
       )}
@@ -159,16 +161,16 @@ const Leaderboard = () => {
       {activeTab === 'employees' && (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[540px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Rank</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Employee</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Department</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tier</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Points</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700"></th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700">Rank</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700">Employee</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Role</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden md:table-cell">Department</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Tier</th>
+                  <th className="px-3 sm:px-6 py-4 text-right text-sm font-semibold text-gray-700">Points</th>
+                  <th className="px-3 sm:px-6 py-4 text-right text-sm font-semibold text-gray-700"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -180,43 +182,44 @@ const Leaderboard = () => {
                       onClick={() => setSelectedUserId(employee._id)}
                       className={`cursor-pointer ${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'} ${employee.isBestEmployee ? 'border-l-4 border-amber-400' : ''}`}
                     >
-                      <td className="px-6 py-4">
-                        <span className={`text-xl font-bold ${getRankColor(employee.rank)}`}>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className={`text-lg sm:text-xl font-bold ${getRankColor(employee.rank)}`}>
                           {getRankIcon(employee.rank)}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <Avatar name={employee.name} size="sm" />
-                          <div>
-                            <p className="font-medium text-gray-800 flex items-center gap-2">
-                              {employee.name}
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-800 flex items-center gap-1 flex-wrap text-sm">
+                              <span className="truncate max-w-[100px] sm:max-w-none">{employee.name}</span>
                               {isCurrentUser && (
-                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">You</span>
+                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full shrink-0">You</span>
                               )}
                               {employee.isBestEmployee && (
-                                <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full">🏅 Best</span>
+                                <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full shrink-0">🏅</span>
                               )}
                             </p>
-                            <p className="text-sm text-gray-500">{employee.email}</p>
+                            <p className="text-xs text-gray-500 truncate hidden sm:block">{employee.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{employee.department}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 text-sm hidden sm:table-cell">
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full
                           ${employee.role === 'TL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                           {employee.role}
                         </span>
-                      </td>                      <td className="px-6 py-4">
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 text-sm hidden md:table-cell">{employee.department}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
                         <TierBadge tier={employee.tier} />
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className={`text-lg font-bold ${employee.points < 0 ? 'text-red-500' : 'text-primary'}`}>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
+                        <span className={`text-base sm:text-lg font-bold ${employee.points < 0 ? 'text-red-500' : 'text-primary'}`}>
                           {employee.points}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
                         <span className="text-gray-300 text-lg">›</span>
                       </td>
                     </tr>
@@ -232,14 +235,14 @@ const Leaderboard = () => {
       {activeTab === 'tls' && (isTL || isAdmin) && (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[400px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Rank</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Team Lead</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Department</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Team Size</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Team Points</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700">Rank</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700">Team Lead</th>
+                  <th className="px-3 sm:px-6 py-4 text-left text-sm font-semibold text-gray-700 hidden sm:table-cell">Department</th>
+                  <th className="px-3 sm:px-6 py-4 text-center text-sm font-semibold text-gray-700 hidden sm:table-cell">Team Size</th>
+                  <th className="px-3 sm:px-6 py-4 text-right text-sm font-semibold text-gray-700">Team Pts</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -251,35 +254,32 @@ const Leaderboard = () => {
                       onClick={() => setSelectedUserId(tl._id)}
                       className={`cursor-pointer ${isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'} ${tl.isBestTL ? 'border-l-4 border-purple-400' : ''}`}
                     >
-                      <td className="px-6 py-4">
-                        <span className={`text-xl font-bold ${getRankColor(tl.rank)}`}>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className={`text-lg sm:text-xl font-bold ${getRankColor(tl.rank)}`}>
                           {getRankIcon(tl.rank)}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <Avatar name={tl.name} size="sm" />
-                          <div>
-                            <p className="font-medium text-gray-800 flex items-center gap-2">
-                              {tl.name}
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-800 flex items-center gap-1 flex-wrap text-sm">
+                              <span className="truncate max-w-[100px] sm:max-w-none">{tl.name}</span>
                               {isCurrentUser && (
-                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">You</span>
+                                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full shrink-0">You</span>
                               )}
                               {tl.isBestTL && (
-                                <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">👑 Best TL</span>
+                                <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full shrink-0">👑</span>
                               )}
                             </p>
-                            <p className="text-sm text-gray-500">{tl.email}</p>
+                            <p className="text-xs text-gray-500 truncate hidden sm:block">{tl.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{tl.department}</td>
-                      <td className="px-6 py-4 text-center text-gray-700">{tl.teamSize} members</td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="text-lg font-bold text-primary">{tl.teamPoints}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="text-gray-300 text-lg">›</span>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-700 text-sm hidden sm:table-cell">{tl.department}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-center text-gray-700 text-sm hidden sm:table-cell">{tl.teamSize} members</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
+                        <span className="text-base sm:text-lg font-bold text-primary">{tl.teamPoints}</span>
                       </td>
                     </tr>
                   );
