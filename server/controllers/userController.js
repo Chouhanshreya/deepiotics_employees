@@ -188,12 +188,18 @@ exports.deleteUser = async (req, res) => {
 };
 
 // @desc    Get leaderboard
-// @route   GET /api/users/leaderboard
+// @route   GET /api/users/leaderboard?department=R%26D
 // @access  Private
 exports.getLeaderboard = async (req, res) => {
   try {
-    // Return both Employees and TLs sorted by points (not Admins)
-    const users = await User.find({ role: { $in: ['Employee', 'TL'] } })
+    const filter = { role: { $in: ['Employee', 'TL'] } };
+
+    // Optional department filter — employees see only their own dept leaderboard
+    if (req.query.department) {
+      filter.department = req.query.department;
+    }
+
+    const users = await User.find(filter)
       .select('-password')
       .populate('teamLead', 'name')
       .sort('-points');

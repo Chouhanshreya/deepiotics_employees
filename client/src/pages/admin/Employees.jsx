@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllUsers, deleteUser } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { useDepartment } from '../../context/DepartmentContext';
 import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
 import ProfileDrawer from '../../components/ProfileDrawer';
@@ -10,6 +11,7 @@ import { Edit2, Trash2, Search, Eye } from 'lucide-react';
 const Employees = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { activeDept, deptFilter } = useDepartment();
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +19,7 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
-  useEffect(() => { fetchEmployees(); }, []);
+  useEffect(() => { fetchEmployees(); }, [deptFilter]);
 
   useEffect(() => {
     let filtered = employees;
@@ -33,10 +35,15 @@ const Employees = () => {
   }, [searchTerm, roleFilter, employees]);
 
   const fetchEmployees = async () => {
+    setLoading(true);
     try {
       const response = await getAllUsers();
-      setEmployees(response.data);
-      setFilteredEmployees(response.data);
+      // Apply dept filter client-side
+      const data = deptFilter
+        ? response.data.filter(u => u.department === deptFilter)
+        : response.data;
+      setEmployees(data);
+      setFilteredEmployees(data);
     } catch (error) {
       console.error('Error fetching employees:', error);
     } finally {
@@ -70,6 +77,7 @@ const Employees = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">👥 Employees</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filteredEmployees.length} user{filteredEmployees.length !== 1 ? 's' : ''} shown
+            {deptFilter ? ` · ${activeDept}` : ''}
           </p>
         </div>
         {isAdmin && (

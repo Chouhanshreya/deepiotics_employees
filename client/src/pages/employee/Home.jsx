@@ -133,10 +133,12 @@ const Home = () => {
 
   const fetchAll = async () => {
     try {
+      // Scope leaderboard + best performers to this employee's own department
+      const dept = user?.department;
       const [lbRes, histRes, bestRes] = await Promise.all([
-        getLeaderboard(),
+        getLeaderboard(dept),
         getPointHistory(user._id),
-        getBestPerformers()
+        getBestPerformers(dept)
       ]);
 
       const idx = lbRes.data.findIndex(u => u._id === user._id);

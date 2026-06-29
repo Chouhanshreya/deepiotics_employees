@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useDepartment } from '../../context/DepartmentContext';
 import { getLeaderboard, getTLLeaderboard, getBestPerformers } from '../../utils/api';
 import { getNextTierInfo } from '../../utils/helpers';
 import Avatar from '../../components/Avatar';
@@ -9,6 +10,7 @@ import { Trophy, Star, Users } from 'lucide-react';
 
 const Leaderboard = () => {
   const { user, isTL, isAdmin } = useAuth();
+  const { activeDept, deptFilter } = useDepartment();
   const [activeTab, setActiveTab] = useState('employees');
   const [employeeLeaderboard, setEmployeeLeaderboard] = useState([]);
   const [tlLeaderboard, setTLLeaderboard] = useState([]);
@@ -16,21 +18,26 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState(null);
 
+  // Employees/TLs see their own dept; Admin sees whatever the header toggle says
+  const userDept = user?.department;
+  const effectiveDept = isAdmin ? deptFilter : userDept;
+
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [deptFilter]); // re-fetch when admin toggles dept
 
   const fetchAll = async () => {
+    setLoading(true);
     try {
       const [empRes, bestRes] = await Promise.all([
-        getLeaderboard(),
-        getBestPerformers()
+        getLeaderboard(effectiveDept),
+        getBestPerformers(effectiveDept)
       ]);
-      setEmployeeLeaderboard(empRes.data); // includes both Employees and TLs
+      setEmployeeLeaderboard(empRes.data);
       setBestPerformers(bestRes.data);
 
       if (isTL || isAdmin) {
-        const tlRes = await getTLLeaderboard();
+        const tlRes = await getTLLeaderboard(effectiveDept);
         setTLLeaderboard(tlRes.data);
       }
     } catch (error) {
@@ -69,6 +76,21 @@ const Leaderboard = () => {
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto w-full">
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">🏆 Leaderboard</h1>
+
+      {/* Department scope notice */}
+      {effectiveDept && (
+        <div className={`mb-4 inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg
+          ${isAdmin
+            ? activeDept === 'R&D'
+              ? 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+              : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+            : 'bg-blue-50 border border-blue-200 text-blue-700'
+          }`}>
+          <span>🏢</span>
+          Showing <span className="font-bold">{effectiveDept}</span> department rankings only
+          {!isAdmin && <span className="text-gray-400 font-normal"> · your department</span>}
+        </div>
+      )}
 
       {/* Best Performers Banner */}
       {(bestPerformers.bestEmployee || bestPerformers.bestTL) && (

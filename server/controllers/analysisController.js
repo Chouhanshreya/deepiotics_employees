@@ -12,9 +12,9 @@ const monthIndex = (date) => date.getFullYear() * 12 + (date.getMonth() + 1);
 
 /**
  * Shared aggregation — returns ranked list of employees/TLs for last N months.
- * Optionally filtered to a specific role ('Employee' or 'TL').
+ * Optionally filtered to a specific role ('Employee' or 'TL') and/or department.
  */
-const buildTopPerformersPipeline = (N, roleFilter) => {
+const buildTopPerformersPipeline = (N, roleFilter, deptFilter) => {
   const now = new Date();
   const lowerBound = new Date(now.getFullYear(), now.getMonth() - (N - 1), 1);
   const minIdx = monthIndex(lowerBound);
@@ -25,10 +25,10 @@ const buildTopPerformersPipeline = (N, roleFilter) => {
     { $match: { monthIdx: { $gte: minIdx, $lte: maxIdx } } },
     { $group: { _id: '$employeeId', totalPoints: { $sum: '$points' }, monthsWithData: { $sum: 1 } } },
     { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-    // Only keep records where the user still exists (removes deleted/unknown users)
     { $match: { 'user.0': { $exists: true } } },
     { $unwind: '$user' },
     ...(roleFilter ? [{ $match: { 'user.role': roleFilter } }] : []),
+    ...(deptFilter ? [{ $match: { 'user.department': deptFilter } }] : []),
     { $project: {
         _id: 0,
         employeeId:   '$_id',
@@ -70,31 +70,20 @@ exports.getAnalysis = async (req, res) => {
     }
 
     const N = rawN;
+    const dept = req.query.department || null;   // optional dept filter
 
-    // Calculate the inclusive lower bound month/year
     const now = new Date();
     const lowerBound = new Date(now.getFullYear(), now.getMonth() - (N - 1), 1);
-    const minIdx = monthIndex(lowerBound);  // e.g. N=3, now=Jun 2026 → Apr 2026 → 24304
-    const maxIdx = monthIndex(now);          // current month
+    const minIdx = monthIndex(lowerBound);
+    const maxIdx = monthIndex(now);
 
     const pipeline = [
-      // 1. Compute a scalar index so we can range-match easily
       {
         $addFields: {
-          monthIdx: {
-            $add: [{ $multiply: ['$year', 12] }, '$month']
-          }
+          monthIdx: { $add: [{ $multiply: ['$year', 12] }, '$month'] }
         }
       },
-
-      // 2. Keep only rows inside the last N calendar months (inclusive both ends)
-      {
-        $match: {
-          monthIdx: { $gte: minIdx, $lte: maxIdx }
-        }
-      },
-
-      // 3. Roll up per employee
+      { $match: { monthIdx: { $gte: minIdx, $lte: maxIdx } } },
       {
         $group: {
           _id: '$employeeId',
@@ -103,8 +92,6 @@ exports.getAnalysis = async (req, res) => {
           monthsWithData: { $sum: 1 }
         }
       },
-
-      // 4. Join employee info from the users collection
       {
         $lookup: {
           from: 'users',
@@ -113,18 +100,10 @@ exports.getAnalysis = async (req, res) => {
           as: 'employee'
         }
       },
-
-      // 5. Drop records where the user no longer exists (deleted users show as "Unknown")
-      {
-        $match: { 'employee.0': { $exists: true } }
-      },
-
-      // 6. Flatten the joined array (each employee has exactly one User doc)
-      {
-        $unwind: '$employee'
-      },
-
-      // 7. Shape the output — drop internal fields, round avg to 2 dp
+      { $match: { 'employee.0': { $exists: true } } },
+      { $unwind: '$employee' },
+      // Department filter — applied after join
+      ...(dept ? [{ $match: { 'employee.department': dept } }] : []),
       {
         $project: {
           _id: 0,
@@ -137,11 +116,7 @@ exports.getAnalysis = async (req, res) => {
           monthsWithData: 1
         }
       },
-
-      // 8. Best performers first
-      {
-        $sort: { totalPoints: -1 }
-      }
+      { $sort: { totalPoints: -1 } }
     ];
 
     const results = await MonthlyPoints.aggregate(pipeline);
@@ -174,13 +149,15 @@ exports.getTopPerformersByRange = async (req, res) => {
       return res.status(400).json({ message: `months must be one of: ${ALLOWED.join(', ')}` });
     }
 
+    const dept = req.query.department || null;   // optional dept filter
+
     const now        = new Date();
     const lowerBound = new Date(now.getFullYear(), now.getMonth() - (N - 1), 1);
 
-    // Run employee and TL pipelines in parallel
+    // Run employee and TL pipelines in parallel, passing dept filter
     const [empResults, tlResults] = await Promise.all([
-      MonthlyPoints.aggregate(buildTopPerformersPipeline(N, 'Employee')),
-      MonthlyPoints.aggregate(buildTopPerformersPipeline(N, 'TL'))
+      MonthlyPoints.aggregate(buildTopPerformersPipeline(N, 'Employee', dept)),
+      MonthlyPoints.aggregate(buildTopPerformersPipeline(N, 'TL', dept))
     ]);
 
     const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun',
@@ -190,9 +167,8 @@ exports.getTopPerformersByRange = async (req, res) => {
       months: N,
       rangeFrom: `${MONTH_NAMES[lowerBound.getMonth() + 1]} ${lowerBound.getFullYear()}`,
       rangeTo:   `${MONTH_NAMES[now.getMonth() + 1]} ${now.getFullYear()}`,
-      bestEmployee: empResults[0] ?? null,   // top employee or null if no data
-      bestTL:       tlResults[0]  ?? null,   // top TL or null
-      // Also return top 5 for each so UI can show a leaderboard if wanted
+      bestEmployee: empResults[0] ?? null,
+      bestTL:       tlResults[0]  ?? null,
       topEmployees: empResults.slice(0, 5),
       topTLs:       tlResults.slice(0, 5),
     });

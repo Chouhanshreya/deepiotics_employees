@@ -4,6 +4,7 @@ import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
 import { Users, Award, Trophy, TrendingUp, Star, Clock, Layers, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useDepartment } from '../../context/DepartmentContext';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
@@ -18,24 +19,25 @@ const categoryIcon = (cat) => {
 
 const Overview = () => {
   const { user } = useAuth();
+  const { activeDept, deptFilter } = useDepartment();
   const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
-  const [bestPerformers, setBestPerformers] = useState({ bestEmployee: null, bestTL: null });
   const [liveRankings, setLiveRankings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => { fetchAll(); }, []);
+  // Refetch whenever the global dept toggle changes
+  useEffect(() => { fetchAll(); }, [deptFilter]);
 
   const fetchAll = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [ovRes, bestRes, liveRes] = await Promise.all([
-        getOverview(),
-        getBestPerformers(),
-        getLiveRankings()
+      const [ovRes, liveRes] = await Promise.all([
+        getOverview(deptFilter),
+        getLiveRankings(deptFilter)
       ]);
       setOverview(ovRes.data);
-      setBestPerformers(bestRes.data);
       setLiveRankings(liveRes.data);
     } catch (err) {
       console.error(err);
@@ -44,6 +46,15 @@ const Overview = () => {
       setLoading(false);
     }
   };
+
+  // For top5 and deptAgg, filter client-side when a dept is selected
+  const filteredTop5 = deptFilter
+    ? overview?.top5?.filter(e => e.department === deptFilter)
+    : overview?.top5;
+
+  const filteredDeptAgg = deptFilter
+    ? overview?.deptAgg?.filter(d => d._id === deptFilter)
+    : overview?.deptAgg;
 
   if (loading) {
     return (
@@ -87,6 +98,14 @@ const Overview = () => {
         </button>
       </div>
 
+      {/* Department Toggle */}
+      {deptFilter && (
+        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold w-fit
+          ${activeDept === 'R&D' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+          {activeDept === 'R&D' ? '🔬' : '💻'} Viewing: {activeDept} Department only
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {[
@@ -113,7 +132,9 @@ const Overview = () => {
             <div className="bg-gradient-to-r from-amber-400 to-yellow-300 rounded-2xl p-5 flex items-center gap-4 shadow-md">
               <span className="text-5xl">🏅</span>
               <div className="flex-1">
-                <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">⭐ This Month's Star Performer</p>
+                <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">
+                  ⭐ {deptFilter ? `${activeDept} · ` : ''}This Month's Star Performer
+                </p>
                 <p className="text-xl font-black text-white">{liveRankings.starPerformer.name}</p>
                 <p className="text-amber-100 text-sm">{liveRankings.starPerformer.department} · {liveRankings.starPerformer.monthPoints} pts this month</p>
               </div>
@@ -123,7 +144,9 @@ const Overview = () => {
             <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl p-5 flex items-center gap-4 shadow-md">
               <span className="text-5xl">👑</span>
               <div className="flex-1">
-                <p className="text-xs font-black text-purple-200 uppercase tracking-widest mb-1">🏆 This Month's Best TL</p>
+                <p className="text-xs font-black text-purple-200 uppercase tracking-widest mb-1">
+                  🏆 {deptFilter ? `${activeDept} · ` : ''}This Month's Best TL
+                </p>
                 <p className="text-xl font-black text-white">{liveRankings.bestTL.name}</p>
                 <p className="text-purple-200 text-sm">{liveRankings.bestTL.department} · {liveRankings.bestTL.monthPoints} pts this month</p>
               </div>
@@ -140,14 +163,18 @@ const Overview = () => {
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <Trophy size={18} className="text-amber-500" />
-              <h3 className="font-bold text-gray-700">Top Performers</h3>
+              <h3 className="font-bold text-gray-700">
+                Top Performers {deptFilter ? `· ${activeDept}` : ''}
+              </h3>
             </div>
             <button onClick={() => navigate('/employees')} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1">
               View all <ArrowRight size={12} />
             </button>
           </div>
           <div className="divide-y divide-gray-50">
-            {overview.top5?.map((emp, i) => {
+            {(filteredTop5 || []).length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-400 text-sm">No data for this department yet</div>
+            ) : (filteredTop5 || []).map((emp, i) => {
               const medals = ['🥇','🥈','🥉'];
               return (
                 <div key={emp._id} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 transition-colors">
@@ -171,11 +198,13 @@ const Overview = () => {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-5">
             <Layers size={18} className="text-indigo-500" />
-            <h3 className="font-bold text-gray-700">Points by Department</h3>
+            <h3 className="font-bold text-gray-700">
+              Points by Department {deptFilter ? `· ${activeDept}` : ''}
+            </h3>
           </div>
-          {overview.deptAgg?.length > 0 ? (
+          {(filteredDeptAgg || []).length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={overview.deptAgg} layout="vertical" margin={{ left: 10 }}>
+              <BarChart data={filteredDeptAgg} layout="vertical" margin={{ left: 10 }}>
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="_id" tick={{ fontSize: 11, fill: '#374151' }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip
@@ -183,7 +212,7 @@ const Overview = () => {
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                 />
                 <Bar dataKey="totalPoints" radius={[0, 8, 8, 0]} barSize={22}>
-                  {overview.deptAgg.map((_, i) => (
+                  {(filteredDeptAgg || []).map((_, i) => (
                     <Cell key={i} fill={DEPT_COLORS[i % DEPT_COLORS.length]} />
                   ))}
                 </Bar>

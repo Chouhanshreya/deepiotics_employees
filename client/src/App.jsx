@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DepartmentProvider, useDepartment, DEPARTMENTS } from './context/DepartmentContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
@@ -25,6 +26,37 @@ import MonthlyHistory from './pages/admin/MonthlyHistory';
 
 import SessionTest from './pages/SessionTest';
 
+// Department toggle pill — only shown to Admin
+function DeptToggle() {
+  const { isAdmin } = useAuth();
+  const { activeDept, setActiveDept } = useDepartment();
+
+  if (!isAdmin) return null;
+
+  const colors = {
+    'All':         { active: 'bg-gray-800 text-white border-gray-800',         base: 'text-gray-500 border-gray-200' },
+    'R&D':         { active: 'bg-indigo-600 text-white border-indigo-600',      base: 'text-indigo-500 border-indigo-200' },
+    'Development': { active: 'bg-emerald-600 text-white border-emerald-600',    base: 'text-emerald-600 border-emerald-200' },
+  };
+
+  const labels = { 'All': '🌐 All', 'R&D': '🔬 R&D', 'Development': '💻 Dev' };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {DEPARTMENTS.map(dept => (
+        <button
+          key={dept}
+          onClick={() => setActiveDept(dept)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all
+            ${activeDept === dept ? colors[dept].active : `bg-white ${colors[dept].base} hover:border-gray-400`}`}
+        >
+          {labels[dept]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function AppLayout({ children }) {
   const { isAuthenticated } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,14 +71,22 @@ function AppLayout({ children }) {
       
       <div className="flex-1 flex flex-col lg:ml-64">
         {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-primary">EMS</h1>
+        <header className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold text-primary shrink-0">EMS</h1>
+          {/* Department toggle in mobile header */}
+          <DeptToggle />
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-gray-100 rounded-lg shrink-0"
           >
             {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
+        </header>
+
+        {/* Desktop Header bar — shows dept toggle when admin */}
+        <header className="hidden lg:flex bg-white border-b border-gray-200 px-6 py-3 items-center justify-between">
+          <DeptToggle />
+          <span /> {/* spacer */}
         </header>
 
         {/* Main Content */}
@@ -61,8 +101,9 @@ function AppLayout({ children }) {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppLayout>
+      <DepartmentProvider>
+        <Router>
+          <AppLayout>
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -181,6 +222,7 @@ function App() {
           </Routes>
         </AppLayout>
       </Router>
+      </DepartmentProvider>
     </AuthProvider>
   );
 }

@@ -75,10 +75,11 @@ const calculateRankings = async (month, year) => {
 };
 
 // ---------------------------------------------------------------------------
-// GET /api/rankings/live
+// GET /api/rankings/live?department=R%26D
 // Returns the CURRENT live Star Performer (highest points Employee) and
 // Best TL (highest points TL) for THIS month — computed on the fly from
 // MonthlyPoints. No manual calculate needed. Always up to date.
+// Optional ?department= filter restricts results to one department.
 // ---------------------------------------------------------------------------
 exports.getLiveRankings = async (req, res) => {
   try {
@@ -86,20 +87,23 @@ exports.getLiveRankings = async (req, res) => {
     const month = now.getMonth() + 1;
     const year  = now.getFullYear();
 
-    // Get all user IDs by role in one query
-    const users    = await User.find({ role: { $in: ['Employee', 'TL'] } }).select('_id role');
+    const userFilter = { role: { $in: ['Employee', 'TL'] } };
+    if (req.query.department) userFilter.department = req.query.department;
+
+    // Get all user IDs by role (+ optional dept) in one query
+    const users    = await User.find(userFilter).select('_id role');
     const empIds   = users.filter(u => u.role === 'Employee').map(u => u._id);
     const tlIds    = users.filter(u => u.role === 'TL').map(u => u._id);
 
     // Top employee this month
-    const topEmpDoc = await MonthlyPoints.findOne({
+    const topEmpDoc = empIds.length ? await MonthlyPoints.findOne({
       month, year, employeeId: { $in: empIds }, points: { $gt: 0 }
-    }).sort({ points: -1 });
+    }).sort({ points: -1 }) : null;
 
     // Top TL this month
-    const topTLDoc = await MonthlyPoints.findOne({
+    const topTLDoc = tlIds.length ? await MonthlyPoints.findOne({
       month, year, employeeId: { $in: tlIds }, points: { $gt: 0 }
-    }).sort({ points: -1 });
+    }).sort({ points: -1 }) : null;
 
     // Populate names
     const starPerformer = topEmpDoc
@@ -177,10 +181,9 @@ exports.getRankings = async (req, res) => {
     const now   = new Date();
     const month = req.query.month ? parseInt(req.query.month, 10) : now.getMonth() + 1;
     const year  = req.query.year  ? parseInt(req.query.year,  10) : now.getFullYear();
+    const dept  = req.query.department || null;
 
-    // Use aggregation pipeline with $lookup so we always get name/role/department
-    // regardless of Mongoose populate quirks with reseeded data
-    const rankings = await Ranking.aggregate([
+    const pipeline = [
       { $match: { month, year } },
       {
         $lookup: {
@@ -206,9 +209,13 @@ exports.getRankings = async (req, res) => {
           }
         }
       },
-      { $project: { employeeData: 0 } },  // remove the raw joined array
-      { $sort: { isStarPerformer: -1 } }   // star performer first
-    ]);
+      { $project: { employeeData: 0 } },
+      // Filter by dept AFTER joining (so we have department on employeeId)
+      ...(dept ? [{ $match: { 'employeeId.department': dept } }] : []),
+      { $sort: { isStarPerformer: -1 } }
+    ];
+
+    const rankings = await require('../models/Ranking').aggregate(pipeline);
 
     return res.json({ month, year, rankings });
   } catch (error) {

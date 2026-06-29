@@ -54,7 +54,7 @@ const Stats = () => {
       const [statsRes, histRes, lbRes] = await Promise.all([
         getUserStats(),
         getPointHistory(user._id),
-        getLeaderboard()
+        getLeaderboard(user?.department)  // rank within own dept only
       ]);
       setStats(statsRes.data);
       setHistory(histRes.data || []);

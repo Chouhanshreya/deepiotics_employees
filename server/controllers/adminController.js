@@ -5,11 +5,14 @@ const MonthlyPoints = require('../models/MonthlyPoints');
 const Ranking = require('../models/Ranking');
 
 // @desc    Get TL leaderboard (TL ranked by their team's total points)
-// @route   GET /api/admin/leaderboard/tls
+// @route   GET /api/admin/leaderboard/tls?department=R%26D
 // @access  Private (Admin, TL)
 exports.getTLLeaderboard = async (req, res) => {
   try {
-    const tls = await User.find({ role: 'TL' }).select('-password');
+    const tlFilter = { role: 'TL' };
+    if (req.query.department) tlFilter.department = req.query.department;
+
+    const tls = await User.find(tlFilter).select('-password');
 
     const tlsWithTeamPoints = await Promise.all(
       tls.map(async (tl) => {
@@ -98,11 +101,41 @@ exports.declareBestTL = async (req, res) => {
   }
 };
 
-// @desc    Get current best performers
-// @route   GET /api/admin/best-performers
+// @desc    Get current best performers (optionally filtered by department)
+// @route   GET /api/admin/best-performers?department=R%26D
 // @access  Private
 exports.getBestPerformers = async (req, res) => {
   try {
+    // If a department filter is provided, compute live best performer for that dept
+    if (req.query.department) {
+      const dept = req.query.department;
+      const now   = new Date();
+      const month = now.getMonth() + 1;
+      const year  = now.getFullYear();
+
+      const deptEmpUsers = await User.find({ role: 'Employee', department: dept }).select('_id');
+      const deptTLUsers  = await User.find({ role: 'TL',      department: dept }).select('_id');
+      const empIds = deptEmpUsers.map(u => u._id);
+      const tlIds  = deptTLUsers.map(u => u._id);
+
+      const topEmpDoc = empIds.length
+        ? await MonthlyPoints.findOne({ month, year, employeeId: { $in: empIds }, points: { $gt: 0 } }).sort({ points: -1 })
+        : null;
+      const topTLDoc = tlIds.length
+        ? await MonthlyPoints.findOne({ month, year, employeeId: { $in: tlIds }, points: { $gt: 0 } }).sort({ points: -1 })
+        : null;
+
+      const bestEmployee = topEmpDoc
+        ? await User.findById(topEmpDoc.employeeId).select('-password')
+        : null;
+      const bestTL = topTLDoc
+        ? await User.findById(topTLDoc.employeeId).select('-password')
+        : null;
+
+      return res.json({ bestEmployee, bestTL, department: dept, live: true });
+    }
+
+    // No filter — return global flags (manual declarations)
     const bestEmployee = await User.findOne({ isBestEmployee: true }).select('-password');
     const bestTL = await User.findOne({ isBestTL: true }).select('-password');
 

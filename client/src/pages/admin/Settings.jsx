@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useDepartment } from '../../context/DepartmentContext';
 import {
   getAllUsers,
   getBestPerformers,
@@ -8,17 +9,22 @@ import {
   resetMonth,
   getArchives,
   closeMonthAndStartNew,
-  cleanTestData
+  cleanTestData,
+  getLiveRankings
 } from '../../utils/api';
 import api from '../../utils/api';
 import Avatar from '../../components/Avatar';
-import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle, Calendar, ArrowRight, Wrench } from 'lucide-react';
+import { Trophy, Crown, RefreshCw, Archive, AlertTriangle, CheckCircle, Calendar, ArrowRight, Wrench, Zap, ToggleLeft } from 'lucide-react';
+
+const DEPARTMENTS = ['R&D', 'Development'];
 
 const Settings = () => {
   const { user } = useAuth();
+  const { deptFilter } = useDepartment();
   const [employees, setEmployees] = useState([]);
   const [tls, setTLs] = useState([]);
   const [bestPerformers, setBestPerformers] = useState({ bestEmployee: null, bestTL: null });
+  const [deptBest, setDeptBest] = useState({});
   const [archives, setArchives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
@@ -30,14 +36,37 @@ const Settings = () => {
   const [closeResult, setCloseResult] = useState(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [declaring, setDeclaring] = useState('');
-  const [message, setMessage] = useState(null); // { type: 'success'|'error', text }
+  const [message, setMessage] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [selectedBestEmployee, setSelectedBestEmployee] = useState('');
   const [selectedBestTL, setSelectedBestTL] = useState('');
+  const [deptSelections, setDeptSelections] = useState({ 'R&D': { emp: '', tl: '' }, 'Development': { emp: '', tl: '' } });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData();      // always load all users for the per-dept cards
+    fetchAllDeptBest();
+  }, []);             // only on mount — dept toggle doesn't affect Settings user lists
+
+  // Re-fetch deptBest when dept toggle changes (live rankings per dept)
+  useEffect(() => {
+    fetchAllDeptBest();
+  }, [deptFilter]);
+
+  const fetchAllDeptBest = async () => {
+    const results = {};
+    await Promise.all(DEPARTMENTS.map(async (dept) => {
+      try {
+        const [liveRes, bestRes] = await Promise.all([
+          getLiveRankings(dept),
+          getBestPerformers(dept)
+        ]);
+        results[dept] = { live: liveRes.data, manual: bestRes.data };
+      } catch (e) {
+        console.error(`Failed to load dept best for ${dept}`, e);
+      }
+    }));
+    setDeptBest(results);
+  };
 
   const fetchData = async () => {
     try {
@@ -47,6 +76,7 @@ const Settings = () => {
         getArchives()
       ]);
       const allUsers = usersRes.data;
+      // Always load ALL employees and TLs — the per-dept cards need everyone
       setEmployees(allUsers.filter(u => u.role === 'Employee'));
       setTLs(allUsers.filter(u => u.role === 'TL'));
       setBestPerformers(bestRes.data);
@@ -88,6 +118,52 @@ const Settings = () => {
       showMsg('success', res.data.message);
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare best TL');
+    } finally {
+      setDeclaring('');
+    }
+  };
+
+  const handleDeclareDeptBestEmployee = async (dept) => {
+    const userId = deptSelections[dept]?.emp;
+    if (!userId) return;
+    setDeclaring(`emp-${dept}`);
+    try {
+      const res = await declareBestEmployee(userId);
+      showMsg('success', `${dept}: ${res.data.message}`);
+      fetchAllDeptBest();
+    } catch (error) {
+      showMsg('error', error.response?.data?.message || 'Failed to declare');
+    } finally {
+      setDeclaring('');
+    }
+  };
+
+  const handleDeclareDeptBestTL = async (dept) => {
+    const userId = deptSelections[dept]?.tl;
+    if (!userId) return;
+    setDeclaring(`tl-${dept}`);
+    try {
+      const res = await declareBestTL(userId);
+      showMsg('success', `${dept}: ${res.data.message}`);
+      fetchAllDeptBest();
+    } catch (error) {
+      showMsg('error', error.response?.data?.message || 'Failed to declare');
+    } finally {
+      setDeclaring('');
+    }
+  };
+
+  const handleAutoCalculateDept = async (dept) => {
+    setDeclaring(`auto-${dept}`);
+    try {
+      const live = deptBest[dept]?.live;
+      if (live?.starPerformer) await declareBestEmployee(live.starPerformer._id);
+      if (live?.bestTL) await declareBestTL(live.bestTL._id);
+      showMsg('success', `Auto-calculated best performers for ${dept} declared!`);
+      fetchAllDeptBest();
+      fetchData();
+    } catch (error) {
+      showMsg('error', error.response?.data?.message || 'Auto-calculate failed');
     } finally {
       setDeclaring('');
     }
@@ -204,11 +280,117 @@ const Settings = () => {
         </div>
       )}
 
-      {/* Declare Best Employee */}
+      {/* ── Per-Department Best Performers ── */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <ToggleLeft className="text-indigo-500" size={22} />
+          <h2 className="text-xl font-semibold text-gray-800">Per-Department Best Performers</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-5">
+          Declare best employee and TL <strong>separately per department</strong>.
+          Hit <strong>Auto-Calculate</strong> to pick this month's top scorer automatically, or choose manually.
+        </p>
+        <div className="space-y-6">
+          {DEPARTMENTS.map(dept => {
+            const deptEmps = employees.filter(e => e.department === dept).sort((a,b) => b.points - a.points);
+            const deptTLs  = tls.filter(t => t.department === dept);
+            const liveData = deptBest[dept]?.live;
+            return (
+              <div key={dept} className={`bg-white rounded-2xl border-2 ${dept === 'R&D' ? 'border-indigo-200' : 'border-emerald-200'} p-5`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={`text-lg font-bold ${dept === 'R&D' ? 'text-indigo-700' : 'text-emerald-700'}`}>
+                    {dept === 'R&D' ? '🔬' : '💻'} {dept} Department
+                  </h3>
+                  <button
+                    onClick={() => handleAutoCalculateDept(dept)}
+                    disabled={declaring === `auto-${dept}` || !liveData?.starPerformer}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50
+                      ${dept === 'R&D' ? 'bg-indigo-500 hover:bg-indigo-600 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`}
+                  >
+                    <Zap size={14} />
+                    {declaring === `auto-${dept}` ? 'Calculating...' : 'Auto-Calculate'}
+                  </button>
+                </div>
+                {liveData && (liveData.starPerformer || liveData.bestTL) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    {liveData.starPerformer && (
+                      <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-center gap-2">
+                        <span>🏅</span>
+                        <div>
+                          <p className="text-xs text-amber-600 font-semibold">Auto: Best Employee</p>
+                          <p className="text-sm font-bold text-gray-700">{liveData.starPerformer.name}</p>
+                          <p className="text-xs text-gray-400">{liveData.starPerformer.monthPoints} pts this month</p>
+                        </div>
+                      </div>
+                    )}
+                    {liveData.bestTL && (
+                      <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 flex items-center gap-2">
+                        <span>👑</span>
+                        <div>
+                          <p className="text-xs text-purple-600 font-semibold">Auto: Best TL</p>
+                          <p className="text-sm font-bold text-gray-700">{liveData.bestTL.name}</p>
+                          <p className="text-xs text-gray-400">{liveData.bestTL.monthPoints} pts this month</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Manual: Best Employee</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={deptSelections[dept]?.emp || ''}
+                        onChange={e => setDeptSelections(prev => ({ ...prev, [dept]: { ...prev[dept], emp: e.target.value } }))}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      >
+                        <option value="">-- Choose --</option>
+                        {deptEmps.map(emp => <option key={emp._id} value={emp._id}>{emp.name} — {emp.points} pts</option>)}
+                      </select>
+                      <button
+                        onClick={() => handleDeclareDeptBestEmployee(dept)}
+                        disabled={!deptSelections[dept]?.emp || declaring === `emp-${dept}`}
+                        className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {declaring === `emp-${dept}` ? '…' : '🏅'}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Manual: Best TL</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={deptSelections[dept]?.tl || ''}
+                        onChange={e => setDeptSelections(prev => ({ ...prev, [dept]: { ...prev[dept], tl: e.target.value } }))}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      >
+                        <option value="">-- Choose --</option>
+                        {deptTLs.map(tl => <option key={tl._id} value={tl._id}>{tl.name}</option>)}
+                      </select>
+                      <button
+                        onClick={() => handleDeclareDeptBestTL(dept)}
+                        disabled={!deptSelections[dept]?.tl || declaring === `tl-${dept}`}
+                        className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {declaring === `tl-${dept}` ? '…' : '👑'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Declare Best Employee (Global) */}
       <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 mb-6">
         <div className="flex items-center gap-3 mb-5">
           <Trophy className="text-amber-500" size={24} />
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Declare Best Employee of the Month</h2>
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Declare Best Employee of the Month</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Global — shown across all departments</p>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           <div className="flex-1">
@@ -242,7 +424,10 @@ const Settings = () => {
       <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 mb-6">
         <div className="flex items-center gap-3 mb-5">
           <Crown className="text-purple-500" size={24} />
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Declare Best TL of the Month</h2>
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Declare Best TL of the Month</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Global — shown across all departments</p>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           <div className="flex-1">

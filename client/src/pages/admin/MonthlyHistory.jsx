@@ -6,6 +6,7 @@ import {
 import { Calendar, TrendingUp, Star, ChevronDown, RefreshCw, Trophy } from 'lucide-react';
 import Avatar from '../../components/Avatar';
 import api from '../../utils/api';
+import { useDepartment } from '../../context/DepartmentContext';
 
 const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun',
                         'Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -23,15 +24,16 @@ const RANGE_OPTIONS = [
 ];
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
-const getAnalysis          = (months) => api.get(`/analysis?months=${months}`);
-const getRankings          = (m, y)   => api.get(`/rankings?month=${m}&year=${y}`);
-const calcRankings         = (m, y)   => api.post('/rankings/calculate', { month: m, year: y });
-const getAvailableMonths   = ()       => api.get('/points/available-months');
-const getTopPerformersByRange = (n)   => api.get(`/analysis/top-performers?months=${n}`);
+const getAnalysis          = (months, dept) => api.get(`/analysis?months=${months}${dept ? `&department=${encodeURIComponent(dept)}` : ''}`);
+const getRankings          = (m, y, dept)   => api.get(`/rankings?month=${m}&year=${y}${dept ? `&department=${encodeURIComponent(dept)}` : ''}`);
+const calcRankings         = (m, y)         => api.post('/rankings/calculate', { month: m, year: y });
+const getAvailableMonths   = ()             => api.get('/points/available-months');
+const getTopPerformersByRange = (n, dept)   => api.get(`/analysis/top-performers?months=${n}${dept ? `&department=${encodeURIComponent(dept)}` : ''}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MonthlyHistory = () => {
+  const { activeDept, deptFilter } = useDepartment();
   // Available months loaded from DB (only months with real data)
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selKey,   setSelKey]   = useState('');   // "M-YYYY" string
@@ -82,14 +84,14 @@ const MonthlyHistory = () => {
     })();
   }, []);
 
-  // ── 2. Fetch rankings when selected month changes ─────────────────────────
+  // ── 2. Fetch rankings when selected month OR dept changes ─────────────────
   useEffect(() => {
     if (!selMonth || !selYear) return;
     (async () => {
       setRankLoading(true);
       setRankings(null);
       try {
-        const res = await getRankings(selMonth, selYear);
+        const res = await getRankings(selMonth, selYear, deptFilter);
         setRankings(res.data);
       } catch (e) {
         console.error('getRankings error', e);
@@ -97,14 +99,14 @@ const MonthlyHistory = () => {
         setRankLoading(false);
       }
     })();
-  }, [selMonth, selYear]);
+  }, [selMonth, selYear, deptFilter]);
 
-  // ── 3. Fetch cumulative analysis when range changes ───────────────────────
+  // ── 3. Fetch cumulative analysis when range OR dept changes ───────────────
   useEffect(() => {
     (async () => {
       setCumulLoading(true);
       try {
-        const res = await getAnalysis(range);
+        const res = await getAnalysis(range, deptFilter);
         setCumulData(res.data);
       } catch (e) {
         console.error('getAnalysis error', e);
@@ -112,16 +114,16 @@ const MonthlyHistory = () => {
         setCumulLoading(false);
       }
     })();
-  }, [range]);
+  }, [range, deptFilter]);
 
-  // ── 4. Fetch 3-month and 6-month best performers on mount ─────────────────
+  // ── 4. Fetch 3-month and 6-month best performers when dept changes ─────────
   useEffect(() => {
     (async () => {
       setMultiLoading(true);
       try {
         const [res3, res6] = await Promise.all([
-          getTopPerformersByRange(3),
-          getTopPerformersByRange(6),
+          getTopPerformersByRange(3, deptFilter),
+          getTopPerformersByRange(6, deptFilter),
         ]);
         setMultiWinners({ 3: res3.data, 6: res6.data });
       } catch (e) {
@@ -130,7 +132,7 @@ const MonthlyHistory = () => {
         setMultiLoading(false);
       }
     })();
-  }, []);
+  }, [deptFilter]);
 
   // ── handlers ──────────────────────────────────────────────────────────────
   const handleMonthChange = (e) => {
@@ -148,7 +150,7 @@ const MonthlyHistory = () => {
     try {
       await calcRankings(selMonth, selYear);
       await new Promise(r => setTimeout(r, 400));
-      const res = await getRankings(selMonth, selYear);
+      const res = await getRankings(selMonth, selYear, deptFilter);
       setRankings(res.data);
       showToast(`Rankings calculated for ${MONTH_NAMES[selMonth]} ${selYear} ✅`);
     } catch (e) {
@@ -167,7 +169,11 @@ const MonthlyHistory = () => {
   // ── derived ───────────────────────────────────────────────────────────────
   const starPerformer = rankings?.rankings?.find(r => r.isStarPerformer);
   const bestTL        = rankings?.rankings?.find(r => r.isBestTL);
-  const tableData     = cumulData?.data || [];
+  // Filter cumulative table by dept if admin has toggled a dept
+  const rawTableData  = cumulData?.data || [];
+  const tableData     = deptFilter
+    ? rawTableData.filter(e => e.department === deptFilter)
+    : rawTableData;
   const chartData     = tableData.slice(0, 10).map(e => ({
     name: e.name?.split(' ')[0] || '?',
     pts:  e.totalPoints,
@@ -193,6 +199,12 @@ const MonthlyHistory = () => {
           <h1 className="text-2xl sm:text-3xl font-black text-gray-800 flex items-center gap-2">
             <Calendar size={24} className="text-indigo-500" />
             Monthly History
+            {deptFilter && (
+              <span className={`text-sm font-semibold px-3 py-1 rounded-full
+                ${activeDept === 'R&D' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                {activeDept === 'R&D' ? '🔬' : '💻'} {activeDept}
+              </span>
+            )}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
             Select a month to see that month's performance and winners
@@ -226,12 +238,12 @@ const MonthlyHistory = () => {
             onClick={() => {
               if (selMonth && selYear) {
                 setRankings(null);
-                getRankings(selMonth, selYear)
+                getRankings(selMonth, selYear, deptFilter)
                   .then(r => setRankings(r.data))
                   .catch(console.error);
               }
               setCumulData(null);
-              getAnalysis(range)
+              getAnalysis(range, deptFilter)
                 .then(r => setCumulData(r.data))
                 .catch(console.error);
             }}

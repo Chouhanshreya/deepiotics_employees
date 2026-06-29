@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getAllUsers, getPointHistory, assignPoints } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { useDepartment } from '../../context/DepartmentContext';
 import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
 import AssignPointsModal from '../../components/AssignPointsModal';
@@ -30,6 +31,7 @@ const categoryColor = (cat) => {
 
 const PointManagement = () => {
   const { user, isAdmin, isTL } = useAuth();
+  const { activeDept, deptFilter } = useDepartment();
 
   // Employees list
   const [allEmployees, setAllEmployees] = useState([]);
@@ -54,7 +56,7 @@ const PointManagement = () => {
 
   useEffect(() => {
     fetchEmployees();
-  }, []);
+  }, [deptFilter]); // re-fetch when dept toggle changes
 
   useEffect(() => {
     let filtered = allEmployees;
@@ -96,8 +98,11 @@ const PointManagement = () => {
 
       let visibleUsers;
       if (isAdmin) {
-        // Admin sees all Employees + all TLs (not other Admins)
-        visibleUsers = allUsers.filter(u => u.role === 'Employee' || u.role === 'TL');
+        // Admin sees all Employees + TLs, filtered by dept toggle
+        visibleUsers = allUsers.filter(u =>
+          (u.role === 'Employee' || u.role === 'TL') &&
+          (!deptFilter || u.department === deptFilter)
+        );
       } else if (isTL) {
         // TL only sees their own team employees
         visibleUsers = allUsers.filter(u =>
@@ -112,7 +117,7 @@ const PointManagement = () => {
 
       setAllEmployees(visibleUsers);
       setFilteredEmployees(visibleUsers);
-      setTLs(tlList);
+      setTLs(tlList.filter(t => !deptFilter || t.department === deptFilter));
     } catch (err) {
       console.error(err);
     } finally {
@@ -161,7 +166,11 @@ const PointManagement = () => {
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">🏆 Point Management</h1>
         <p className="text-gray-500 text-sm mt-1">
-          {isAdmin ? 'Assign and track points for all employees' : 'Assign and track points for your team'}
+          {isAdmin
+            ? deptFilter
+              ? `Assigning and tracking points for ${activeDept} department`
+              : 'Assign and track points for all employees'
+            : 'Assign and track points for your team'}
         </p>
       </div>
 

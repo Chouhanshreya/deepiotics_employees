@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getTopPerformers, getPointsTimeline } from '../../utils/api';
+import { useDepartment } from '../../context/DepartmentContext';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Avatar from '../../components/Avatar';
 import TierBadge from '../../components/TierBadge';
 
 const Analytics = () => {
+  const { activeDept, deptFilter } = useDepartment();
   const [topPerformers, setTopPerformers] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [period, setPeriod] = useState('weekly');
@@ -12,15 +14,20 @@ const Analytics = () => {
 
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [period, deptFilter]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [performersRes, timelineRes] = await Promise.all([
         getTopPerformers(),
         getPointsTimeline(period)
       ]);
-      setTopPerformers(performersRes.data);
+      // Filter top performers by dept if active
+      const performers = deptFilter
+        ? performersRes.data.filter(e => e.department === deptFilter)
+        : performersRes.data;
+      setTopPerformers(performers);
       setTimeline(timelineRes.data);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -44,7 +51,9 @@ const Analytics = () => {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">📊 Analytics</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">
+        📊 Analytics {deptFilter ? `· ${activeDept}` : ''}
+      </h1>
 
       {/* Top Performers Bar Chart */}
       <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 mb-6 sm:mb-8">

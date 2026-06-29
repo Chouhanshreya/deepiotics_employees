@@ -142,15 +142,17 @@ const CreateEmployee = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Department *
             </label>
-            <input
-              type="text"
+            <select
               name="department"
               value={formData.department}
               onChange={handleChange}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="e.g., Engineering, Marketing, Sales"
-            />
+            >
+              <option value="">-- Select Department --</option>
+              <option value="R&D">R&amp;D</option>
+              <option value="Development">Development</option>
+            </select>
           </div>
 
           {!isTL && formData.role === 'Employee' && (

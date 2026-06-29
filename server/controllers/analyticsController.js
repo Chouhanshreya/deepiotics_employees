@@ -7,48 +7,76 @@ const Task = require('../models/Task');
 // @access  Private (Admin, TL)
 exports.getOverview = async (req, res) => {
   try {
-    // Total counts
-    const totalEmployees = await User.countDocuments({ role: 'Employee' });
-    const totalTLs = await User.countDocuments({ role: 'TL' });
+    const dept = req.query.department || null;   // optional dept filter
 
-    // Total points distributed (sum of all point history)
+    // Base filter for employee/TL queries
+    const baseFilter = { role: { $in: ['Employee', 'TL'] } };
+    if (dept) baseFilter.department = dept;
+
+    const empFilter = { role: 'Employee', ...(dept ? { department: dept } : {}) };
+    const tlFilter  = { role: 'TL',       ...(dept ? { department: dept } : {}) };
+
+    // Total counts (scoped to dept if provided)
+    const totalEmployees = await User.countDocuments(empFilter);
+    const totalTLs       = await User.countDocuments(tlFilter);
+
+    // Get all user IDs in this dept scope (for PointHistory queries)
+    let deptUserIds = null;
+    if (dept) {
+      const deptUsers = await User.find(baseFilter).select('_id');
+      deptUserIds = deptUsers.map(u => u._id);
+    }
+
+    // Total points distributed (scoped to dept employees)
+    const pointsMatchStage = deptUserIds
+      ? { $match: { employee: { $in: deptUserIds } } }
+      : { $match: {} };
+
     const pointsAgg = await PointHistory.aggregate([
+      pointsMatchStage,
       { $group: { _id: null, total: { $sum: '$points' } } }
     ]);
     const totalPoints = pointsAgg[0]?.total || 0;
 
-    // Top 5 performers
-    const top5 = await User.find({ role: { $in: ['Employee', 'TL'] } })
+    // Top 5 performers (scoped to dept)
+    const top5 = await User.find(baseFilter)
       .select('-password')
       .sort('-points')
       .limit(5);
 
-    // Points by department
+    // Points by department (always shows all depts for the chart)
     const deptAgg = await User.aggregate([
-      { $match: { role: { $in: ['Employee', 'TL'] } } },
+      { $match: { role: { $in: ['Employee', 'TL'] }, ...(dept ? { department: dept } : {}) } },
       { $group: { _id: '$department', totalPoints: { $sum: '$points' }, count: { $sum: 1 } } },
       { $sort: { totalPoints: -1 } }
     ]);
 
-    // Recent point assignments (last 5)
-    const recentPoints = await PointHistory.find()
+    // Recent point assignments (scoped to dept)
+    const recentPointsQuery = deptUserIds ? { employee: { $in: deptUserIds } } : {};
+    const recentPoints = await PointHistory.find(recentPointsQuery)
       .populate('employee', 'name department')
       .populate('assignedBy', 'name role')
       .sort('-createdAt')
       .limit(5);
 
-    // Points this month
+    // Points this month (scoped to dept)
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
+    const monthMatchStage = deptUserIds
+      ? { $match: { createdAt: { $gte: startOfMonth }, employee: { $in: deptUserIds } } }
+      : { $match: { createdAt: { $gte: startOfMonth } } };
+
     const monthPointsAgg = await PointHistory.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth } } },
+      monthMatchStage,
       { $group: { _id: null, total: { $sum: '$points' } } }
     ]);
     const pointsThisMonth = monthPointsAgg[0]?.total || 0;
 
-    // Total point transactions
-    const totalTransactions = await PointHistory.countDocuments();
+    // Total transactions (scoped to dept)
+    const totalTransactions = deptUserIds
+      ? await PointHistory.countDocuments({ employee: { $in: deptUserIds } })
+      : await PointHistory.countDocuments();
 
     res.json({
       totalEmployees,

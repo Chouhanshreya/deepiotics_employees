@@ -49,7 +49,7 @@ export const getUserById = (id) => api.get(`/users/${id}`);
 export const createUser = (userData) => api.post('/users', userData);
 export const updateUser = (id, userData) => api.put(`/users/${id}`, userData);
 export const deleteUser = (id) => api.delete(`/users/${id}`);
-export const getLeaderboard = () => api.get('/users/leaderboard');
+export const getLeaderboard = (department) => api.get(department ? `/users/leaderboard?department=${encodeURIComponent(department)}` : '/users/leaderboard');
 export const getTeamMembers = () => api.get('/users/team');
 export const assignPoints = (id, data) => api.post(`/users/${id}/points`, data);
 export const getPointHistory = (id) => api.get(`/users/${id}/points/history`);
@@ -62,7 +62,7 @@ export const updateTask = (id, taskData) => api.put(`/tasks/${id}`, taskData);
 export const deleteTask = (id) => api.delete(`/tasks/${id}`);
 
 // Analytics
-export const getOverview = () => api.get('/analytics/overview');
+export const getOverview = (department) => api.get(department ? `/analytics/overview?department=${encodeURIComponent(department)}` : '/analytics/overview');
 export const getTopPerformers = () => api.get('/analytics/top-performers');
 export const getPointsTimeline = (period) => api.get(`/analytics/points-timeline?period=${period}`);
 export const getUserStats = (id) => api.get(`/analytics/user-stats/${id || ''}`);
@@ -74,11 +74,11 @@ export const getAnalysis = (months) => api.get(`/analysis?months=${months}`);
 export const getTopPerformersByRange = (months) => api.get(`/analysis/top-performers?months=${months}`);
 export const getRankings = (month, year) => api.get(`/rankings?month=${month}&year=${year}`);
 export const calculateRankings = (month, year) => api.post('/rankings/calculate', { month, year });
-export const getLiveRankings = () => api.get('/rankings/live');
+export const getLiveRankings = (department) => api.get(department ? `/rankings/live?department=${encodeURIComponent(department)}` : '/rankings/live');
 
 // Admin
-export const getTLLeaderboard = () => api.get('/admin/leaderboard/tls');
-export const getBestPerformers = () => api.get('/admin/best-performers');
+export const getTLLeaderboard = (department) => api.get(department ? `/admin/leaderboard/tls?department=${encodeURIComponent(department)}` : '/admin/leaderboard/tls');
+export const getBestPerformers = (department) => api.get(department ? `/admin/best-performers?department=${encodeURIComponent(department)}` : '/admin/best-performers');
 export const declareBestEmployee = (userId) => api.post('/admin/best-employee', { userId });
 export const declareBestTL = (userId) => api.post('/admin/best-tl', { userId });
 export const resetMonth = () => api.post('/admin/reset-month');
