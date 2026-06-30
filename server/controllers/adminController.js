@@ -33,9 +33,26 @@ exports.getTLLeaderboard = async (req, res) => {
       return new Date(a.joinDate) - new Date(b.joinDate);
     });
 
+    // Build accurate isBestTL flags from BestPerformer collection (manual > auto)
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+    const depts = [...new Set(tlsWithTeamPoints.map(t => t.department).filter(Boolean))];
+
+    const bestTLIdByDept = {};
+    await Promise.all(depts.map(async (dept) => {
+      const [manualTL, autoTL] = await Promise.all([
+        BestPerformer.findOne({ department: dept, role: 'TL', type: 'manual', month, year }),
+        BestPerformer.findOne({ department: dept, role: 'TL', type: 'auto',   month, year }),
+      ]);
+      const bestTLId = (manualTL?.employeeId || autoTL?.employeeId)?.toString() || null;
+      if (bestTLId) bestTLIdByDept[dept] = bestTLId;
+    }));
+
     const ranked = tlsWithTeamPoints.map((tl, index) => ({
       ...tl,
-      rank: index + 1
+      rank: index + 1,
+      isBestTL: bestTLIdByDept[tl.department] === tl._id.toString(),
     }));
 
     res.json(ranked);
@@ -131,7 +148,7 @@ exports.getBestPerformers = async (req, res) => {
     const dept  = req.query.department || null;
 
     if (dept) {
-      // Return BOTH auto and manual declared winners for this dept+month
+      // Dept-specific: return both auto and manual declared winners
       const [autoEmp, autoTL, manualEmp, manualTL] = await Promise.all([
         BestPerformer.findOne({ department: dept, role: 'Employee', type: 'auto',   month, year }).populate('employeeId', '-password'),
         BestPerformer.findOne({ department: dept, role: 'TL',       type: 'auto',   month, year }).populate('employeeId', '-password'),
@@ -139,11 +156,14 @@ exports.getBestPerformers = async (req, res) => {
         BestPerformer.findOne({ department: dept, role: 'TL',       type: 'manual', month, year }).populate('employeeId', '-password'),
       ]);
 
+      // For all display pages (Leaderboard, Overview, Home): manual wins over auto
+      const bestEmployee = manualEmp?.employeeId || autoEmp?.employeeId || null;
+      const bestTL       = manualTL?.employeeId  || autoTL?.employeeId  || null;
+
       return res.json({
-        // For banner display: prefer manual if set, else auto
-        bestEmployee: manualEmp?.employeeId || autoEmp?.employeeId || null,
-        bestTL:       manualTL?.employeeId  || autoTL?.employeeId  || null,
-        // Separate fields for Settings display
+        bestEmployee,
+        bestTL,
+        // Separate fields for Settings display only
         autoEmployee:   autoEmp?.employeeId   || null,
         autoTL:         autoTL?.employeeId    || null,
         manualEmployee: manualEmp?.employeeId || null,
@@ -152,14 +172,18 @@ exports.getBestPerformers = async (req, res) => {
       });
     }
 
-    // No dept — latest BestPerformer across all depts this month
-    const [latestEmpRecord, latestTLRecord] = await Promise.all([
-      BestPerformer.findOne({ role: 'Employee', month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
-      BestPerformer.findOne({ role: 'TL',       month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
+    // No dept — return latest declared winner across all depts this month
+    const [latestManualEmp, latestAutoEmp, latestManualTL, latestAutoTL] = await Promise.all([
+      BestPerformer.findOne({ role: 'Employee', type: 'manual', month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
+      BestPerformer.findOne({ role: 'Employee', type: 'auto',   month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
+      BestPerformer.findOne({ role: 'TL',       type: 'manual', month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
+      BestPerformer.findOne({ role: 'TL',       type: 'auto',   month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
     ]);
 
-    const bestEmployee = latestEmpRecord?.employeeId || await User.findOne({ isBestEmployee: true }).select('-password');
-    const bestTL       = latestTLRecord?.employeeId  || await User.findOne({ isBestTL: true }).select('-password');
+    const bestEmployee = latestManualEmp?.employeeId || latestAutoEmp?.employeeId
+      || await User.findOne({ isBestEmployee: true }).select('-password');
+    const bestTL = latestManualTL?.employeeId || latestAutoTL?.employeeId
+      || await User.findOne({ isBestTL: true }).select('-password');
 
     return res.json({ bestEmployee, bestTL });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllUsers, getPointHistory, assignPoints } from '../../utils/api';
+import { getAllUsers, getPointHistory, assignPoints, getBestPerformers } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useDepartment } from '../../context/DepartmentContext';
 import Avatar from '../../components/Avatar';
@@ -54,9 +54,22 @@ const PointManagement = () => {
   // TL options for filter
   const [tls, setTLs] = useState([]);
 
+  // Declared best performers (manual > auto)
+  const [declaredBest, setDeclaredBest] = useState({ bestEmployee: null, bestTL: null });
+
   useEffect(() => {
     fetchEmployees();
+    fetchDeclaredBest();
   }, [deptFilter]); // re-fetch when dept toggle changes
+
+  const fetchDeclaredBest = async () => {
+    try {
+      const res = await getBestPerformers(deptFilter || undefined);
+      setDeclaredBest(res.data);
+    } catch (e) {
+      console.error('Failed to fetch declared best performers', e);
+    }
+  };
 
   useEffect(() => {
     let filtered = allEmployees;
@@ -205,15 +218,35 @@ const PointManagement = () => {
         </div>
       </div>
 
-      {/* Top Performer Mini Banner */}
-      {topEmployee && (
-        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center gap-4">
-          <span className="text-3xl">🥇</span>
-          <div className="flex-1">
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wide">Top Performer</p>
-            <p className="font-bold text-gray-800">{topEmployee.name} — {topEmployee.department}</p>
-          </div>
-          <span className="text-2xl font-black text-amber-600">{topEmployee.points} pts</span>
+      {/* Top Performer / Best Performer Banner — shows declared winner (manual > auto), falls back to highest points */}
+      {(declaredBest.bestEmployee || declaredBest.bestTL || topEmployee) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Best Employee */}
+          {(declaredBest.bestEmployee || topEmployee) && (
+            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4">
+              <span className="text-3xl">🥇</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-wide">
+                  {declaredBest.bestEmployee ? 'Best Employee of the Month' : 'Top Performer'}
+                </p>
+                <p className="font-bold text-gray-800">
+                  {(declaredBest.bestEmployee || topEmployee).name} — {(declaredBest.bestEmployee || topEmployee).department}
+                </p>
+              </div>
+              <span className="text-2xl font-black text-amber-600">{(declaredBest.bestEmployee || topEmployee).points} pts</span>
+            </div>
+          )}
+          {/* Best TL */}
+          {declaredBest.bestTL && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4 flex items-center gap-4">
+              <span className="text-3xl">👑</span>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Best TL of the Month</p>
+                <p className="font-bold text-gray-800">{declaredBest.bestTL.name} — {declaredBest.bestTL.department}</p>
+              </div>
+              <span className="text-2xl font-black text-purple-600">{declaredBest.bestTL.points} pts</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -434,6 +467,7 @@ const PointManagement = () => {
           onClose={() => setSelectedEmployee(null)}
           onSuccess={() => {
             fetchEmployees();
+            fetchDeclaredBest();
             setSelectedEmployee(null);
             if (showHistory) loadGlobalHistory();
           }}

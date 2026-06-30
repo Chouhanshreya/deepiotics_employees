@@ -204,10 +204,43 @@ exports.getLeaderboard = async (req, res) => {
       .populate('teamLead', 'name')
       .sort('-points');
 
-    const leaderboard = users.map((user, index) => ({
-      ...user.toJSON(),
-      rank: index + 1
+    // Build accurate isBestEmployee / isBestTL flags from BestPerformer collection
+    // (manual > auto priority), scoped per department — fixes the legacy global-flag bug
+    const BestPerformer = require('../models/BestPerformer');
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+
+    // Determine which departments are in this result set
+    const depts = [...new Set(users.map(u => u.department).filter(Boolean))];
+
+    // For each dept, find the declared best employee and best TL
+    const bestEmpIdByDept = {};
+    const bestTLIdByDept  = {};
+
+    await Promise.all(depts.map(async (dept) => {
+      const [manualEmp, autoEmp, manualTL, autoTL] = await Promise.all([
+        BestPerformer.findOne({ department: dept, role: 'Employee', type: 'manual', month, year }),
+        BestPerformer.findOne({ department: dept, role: 'Employee', type: 'auto',   month, year }),
+        BestPerformer.findOne({ department: dept, role: 'TL',       type: 'manual', month, year }),
+        BestPerformer.findOne({ department: dept, role: 'TL',       type: 'auto',   month, year }),
+      ]);
+      const bestEmpId = (manualEmp?.employeeId || autoEmp?.employeeId)?.toString() || null;
+      const bestTLId  = (manualTL?.employeeId  || autoTL?.employeeId)?.toString()  || null;
+      if (bestEmpId) bestEmpIdByDept[dept] = bestEmpId;
+      if (bestTLId)  bestTLIdByDept[dept]  = bestTLId;
     }));
+
+    const leaderboard = users.map((user, index) => {
+      const userId = user._id.toString();
+      const dept   = user.department;
+      return {
+        ...user.toJSON(),
+        rank:          index + 1,
+        isBestEmployee: bestEmpIdByDept[dept] === userId,
+        isBestTL:       bestTLIdByDept[dept]  === userId,
+      };
+    });
 
     res.json(leaderboard);
   } catch (error) {

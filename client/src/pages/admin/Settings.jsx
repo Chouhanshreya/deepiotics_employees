@@ -108,6 +108,7 @@ const Settings = () => {
       setBestPerformers(prev => ({ ...prev, bestEmployee: res.data.user }));
       showMsg('success', res.data.message);
       fetchData();
+      fetchAllDeptBest(); // refresh per-dept cards too
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare best employee');
     } finally {
@@ -126,6 +127,7 @@ const Settings = () => {
       setBestPerformers(prev => ({ ...prev, bestTL: res.data.user }));
       showMsg('success', res.data.message);
       fetchData();
+      fetchAllDeptBest(); // refresh per-dept cards too
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare best TL');
     } finally {
@@ -174,10 +176,9 @@ const Settings = () => {
   const handleAutoCalculateDept = async (dept) => {
     setDeclaring(`auto-${dept}`);
     try {
-      const live = deptBest[dept]?.live;
-      // Auto-Calculate always passes type: 'auto'
-      if (live?.starPerformer) await declareBestEmployee(live.starPerformer._id, dept, 'auto');
-      if (live?.bestTL)        await declareBestTL(live.bestTL._id, dept, 'auto');
+      // Call the rankings calculate endpoint — it clears manual overrides and
+      // writes the true top scorer (by MonthlyPoints) as type:'auto' for this dept
+      await api.post('/rankings/calculate');
       showMsg('success', `${dept}: Best performers auto-declared!`);
       fetchAllDeptBest();
       fetchData();

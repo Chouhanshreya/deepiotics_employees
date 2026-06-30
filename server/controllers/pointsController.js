@@ -138,7 +138,8 @@ exports.getCurrentMonthPoints = async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // GET /api/points/month-top?month=M&year=Y&department=X
-// Returns the top Employee and top TL by MonthlyPoints for a specific month.
+// Returns the top Employee and top TL for a specific month.
+// Priority: manual BestPerformer > auto BestPerformer > highest MonthlyPoints.
 // Optional ?department= restricts to that department.
 // Used by Monthly History winner cards.
 // ---------------------------------------------------------------------------
@@ -149,6 +150,59 @@ exports.getMonthTopScorers = async (req, res) => {
     const year  = req.query.year  ? parseInt(req.query.year,  10) : now.getFullYear();
     const dept  = req.query.department || null;
 
+    const BestPerformer = require('../models/BestPerformer');
+
+    // ── Step 1: Check BestPerformer declared records (manual > auto) ──────
+    if (dept) {
+      const [manualEmp, autoEmp, manualTL, autoTL] = await Promise.all([
+        BestPerformer.findOne({ department: dept, role: 'Employee', type: 'manual', month, year }).populate('employeeId', 'name department role'),
+        BestPerformer.findOne({ department: dept, role: 'Employee', type: 'auto',   month, year }).populate('employeeId', 'name department role'),
+        BestPerformer.findOne({ department: dept, role: 'TL',       type: 'manual', month, year }).populate('employeeId', 'name department role'),
+        BestPerformer.findOne({ department: dept, role: 'TL',       type: 'auto',   month, year }).populate('employeeId', 'name department role'),
+      ]);
+
+      const declaredEmp = manualEmp?.employeeId || autoEmp?.employeeId || null;
+      const declaredTL  = manualTL?.employeeId  || autoTL?.employeeId  || null;
+
+      if (declaredEmp || declaredTL) {
+        const [empMonthPts, tlMonthPts] = await Promise.all([
+          declaredEmp ? MonthlyPoints.findOne({ employeeId: declaredEmp._id, month, year }) : null,
+          declaredTL  ? MonthlyPoints.findOne({ employeeId: declaredTL._id,  month, year }) : null,
+        ]);
+        return res.json({
+          month, year,
+          starPerformer: declaredEmp ? { ...declaredEmp.toObject(), monthPoints: empMonthPts?.points ?? 0 } : null,
+          bestTL:        declaredTL  ? { ...declaredTL.toObject(),  monthPoints: tlMonthPts?.points  ?? 0 } : null,
+        });
+      }
+    }
+
+    // No dept or no declared records — check cross-dept declared records
+    if (!dept) {
+      const [manualEmp, autoEmp, manualTL, autoTL] = await Promise.all([
+        BestPerformer.findOne({ role: 'Employee', type: 'manual', month, year }).sort({ updatedAt: -1 }).populate('employeeId', 'name department role'),
+        BestPerformer.findOne({ role: 'Employee', type: 'auto',   month, year }).sort({ updatedAt: -1 }).populate('employeeId', 'name department role'),
+        BestPerformer.findOne({ role: 'TL',       type: 'manual', month, year }).sort({ updatedAt: -1 }).populate('employeeId', 'name department role'),
+        BestPerformer.findOne({ role: 'TL',       type: 'auto',   month, year }).sort({ updatedAt: -1 }).populate('employeeId', 'name department role'),
+      ]);
+
+      const declaredEmp = manualEmp?.employeeId || autoEmp?.employeeId || null;
+      const declaredTL  = manualTL?.employeeId  || autoTL?.employeeId  || null;
+
+      if (declaredEmp || declaredTL) {
+        const [empMonthPts, tlMonthPts] = await Promise.all([
+          declaredEmp ? MonthlyPoints.findOne({ employeeId: declaredEmp._id, month, year }) : null,
+          declaredTL  ? MonthlyPoints.findOne({ employeeId: declaredTL._id,  month, year }) : null,
+        ]);
+        return res.json({
+          month, year,
+          starPerformer: declaredEmp ? { ...declaredEmp.toObject(), monthPoints: empMonthPts?.points ?? 0 } : null,
+          bestTL:        declaredTL  ? { ...declaredTL.toObject(),  monthPoints: tlMonthPts?.points  ?? 0 } : null,
+        });
+      }
+    }
+
+    // ── Step 2: Fall back to highest MonthlyPoints (no declaration yet) ───
     const userFilter = { role: { $in: ['Employee', 'TL'] } };
     if (dept) userFilter.department = dept;
 
