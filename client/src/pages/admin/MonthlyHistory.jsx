@@ -29,30 +29,31 @@ const getRankings          = (m, y, dept)   => api.get(`/rankings?month=${m}&yea
 const calcRankings         = (m, y)         => api.post('/rankings/calculate', { month: m, year: y });
 const getAvailableMonths   = ()             => api.get('/points/available-months');
 const getTopPerformersByRange = (n, dept)   => api.get(`/analysis/top-performers?months=${n}${dept ? `&department=${encodeURIComponent(dept)}` : ''}`);
+// Get top scorer for a specific month (used for winner cards)
+const getMonthTopScorers   = (m, y, dept)   => api.get(`/points/month-top?month=${m}&year=${y}${dept ? `&department=${encodeURIComponent(dept)}` : ''}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MonthlyHistory = () => {
   const { activeDept, deptFilter } = useDepartment();
-  // Available months loaded from DB (only months with real data)
   const [availableMonths, setAvailableMonths] = useState([]);
-  const [selKey,   setSelKey]   = useState('');   // "M-YYYY" string
+  const [selKey,   setSelKey]   = useState('');
   const [selMonth, setSelMonth] = useState(null);
   const [selYear,  setSelYear]  = useState(null);
 
   const [range,      setRange]      = useState(3);
   const [cumulData,  setCumulData]  = useState(null);
-  const [rankings,   setRankings]   = useState(null);
+  // monthWinners: live-computed top scorer for the selected month+dept
+  const [monthWinners, setMonthWinners] = useState({ starPerformer: null, bestTL: null });
 
-  // Multi-month best performers (3 months and 6 months)
   const [multiWinners, setMultiWinners] = useState({ 3: null, 6: null });
   const [multiLoading, setMultiLoading] = useState(true);
 
-  const [monthsLoading, setMonthsLoading] = useState(true);
-  const [cumulLoading,  setCumulLoading]  = useState(false);
-  const [rankLoading,   setRankLoading]   = useState(false);
-  const [calcLoading,   setCalcLoading]   = useState(false);
-  const [toast,         setToast]         = useState('');
+  const [monthsLoading,   setMonthsLoading]   = useState(true);
+  const [cumulLoading,    setCumulLoading]     = useState(false);
+  const [rankLoading,     setRankLoading]      = useState(false);
+  const [calcLoading,     setCalcLoading]      = useState(false);
+  const [toast,           setToast]            = useState('');
 
   // ── 1. Load available months on mount ────────────────────────────────────
   useEffect(() => {
@@ -84,17 +85,17 @@ const MonthlyHistory = () => {
     })();
   }, []);
 
-  // ── 2. Fetch rankings when selected month OR dept changes ─────────────────
+  // ── 2. Fetch month top scorers when selected month OR dept changes ──────────
   useEffect(() => {
     if (!selMonth || !selYear) return;
     (async () => {
       setRankLoading(true);
-      setRankings(null);
+      setMonthWinners({ starPerformer: null, bestTL: null });
       try {
-        const res = await getRankings(selMonth, selYear, deptFilter);
-        setRankings(res.data);
+        const res = await getMonthTopScorers(selMonth, selYear, deptFilter);
+        setMonthWinners(res.data);
       } catch (e) {
-        console.error('getRankings error', e);
+        console.error('getMonthTopScorers error', e);
       } finally {
         setRankLoading(false);
       }
@@ -146,12 +147,12 @@ const MonthlyHistory = () => {
   const handleCalcRankings = async () => {
     if (!selMonth || !selYear) return;
     setCalcLoading(true);
-    setRankings(null);
+    setMonthWinners({ starPerformer: null, bestTL: null });
     try {
       await calcRankings(selMonth, selYear);
       await new Promise(r => setTimeout(r, 400));
-      const res = await getRankings(selMonth, selYear, deptFilter);
-      setRankings(res.data);
+      const res = await getMonthTopScorers(selMonth, selYear, deptFilter);
+      setMonthWinners(res.data);
       showToast(`Rankings calculated for ${MONTH_NAMES[selMonth]} ${selYear} ✅`);
     } catch (e) {
       console.error('calcRankings error', e);
@@ -167,8 +168,13 @@ const MonthlyHistory = () => {
   };
 
   // ── derived ───────────────────────────────────────────────────────────────
-  const starPerformer = rankings?.rankings?.find(r => r.isStarPerformer);
-  const bestTL        = rankings?.rankings?.find(r => r.isBestTL);
+  // Always use live-computed top scorers for the winner cards
+  const starPerformer = monthWinners.starPerformer
+    ? { employeeId: monthWinners.starPerformer }
+    : null;
+  const bestTL = monthWinners.bestTL
+    ? { employeeId: monthWinners.bestTL }
+    : null;
   // Filter cumulative table by dept if admin has toggled a dept
   const rawTableData  = cumulData?.data || [];
   const tableData     = deptFilter
@@ -235,11 +241,11 @@ const MonthlyHistory = () => {
           </div>
 
           <button
-            onClick={() => {
+            onClick={async () => {
               if (selMonth && selYear) {
-                setRankings(null);
-                getRankings(selMonth, selYear, deptFilter)
-                  .then(r => setRankings(r.data))
+                setMonthWinners({ starPerformer: null, bestTL: null });
+                getMonthTopScorers(selMonth, selYear, deptFilter)
+                  .then(r => setMonthWinners(r.data))
                   .catch(console.error);
               }
               setCumulData(null);
@@ -274,7 +280,8 @@ const MonthlyHistory = () => {
                 {starPerformer.employeeId?.name || starPerformer.name || '—'}
               </p>
               <p className="text-amber-100 text-sm mt-0.5">
-                {starPerformer.employeeId?.department || starPerformer.department || ''} · Employee
+                {starPerformer.employeeId?.department || starPerformer.department || ''}
+                {monthWinners.starPerformer?.monthPoints != null ? ` · ${monthWinners.starPerformer.monthPoints} pts` : ''} · Employee
               </p>
             </div>
           </div>
@@ -309,7 +316,8 @@ const MonthlyHistory = () => {
                 {bestTL.employeeId?.name || bestTL.name || '—'}
               </p>
               <p className="text-purple-200 text-sm mt-0.5">
-                {bestTL.employeeId?.department || bestTL.department || ''} · Team Lead
+                {bestTL.employeeId?.department || bestTL.department || ''}
+                {monthWinners.bestTL?.monthPoints != null ? ` · ${monthWinners.bestTL.monthPoints} pts` : ''} · Team Lead
               </p>
             </div>
           </div>

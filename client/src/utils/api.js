@@ -79,8 +79,8 @@ export const getLiveRankings = (department) => api.get(department ? `/rankings/l
 // Admin
 export const getTLLeaderboard = (department) => api.get(department ? `/admin/leaderboard/tls?department=${encodeURIComponent(department)}` : '/admin/leaderboard/tls');
 export const getBestPerformers = (department) => api.get(department ? `/admin/best-performers?department=${encodeURIComponent(department)}` : '/admin/best-performers');
-export const declareBestEmployee = (userId) => api.post('/admin/best-employee', { userId });
-export const declareBestTL = (userId) => api.post('/admin/best-tl', { userId });
+export const declareBestEmployee = (userId, department, type = 'manual') => api.post('/admin/best-employee', { userId, department: department || 'global', type });
+export const declareBestTL = (userId, department, type = 'manual') => api.post('/admin/best-tl', { userId, department: department || 'global', type });
 export const resetMonth = () => api.post('/admin/reset-month');
 export const getArchives = () => api.get('/admin/archives');
 export const getArchiveById = (id) => api.get(`/admin/archives/${id}`);

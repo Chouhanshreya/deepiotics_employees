@@ -22,6 +22,8 @@ const Leaderboard = () => {
   const userDept = user?.department;
   const effectiveDept = isAdmin ? deptFilter : userDept;
 
+  const [allDeptBest, setAllDeptBest] = useState([]);
+
   useEffect(() => {
     fetchAll();
   }, [deptFilter]); // re-fetch when admin toggles dept
@@ -39,6 +41,20 @@ const Leaderboard = () => {
       if (isTL || isAdmin) {
         const tlRes = await getTLLeaderboard(effectiveDept);
         setTLLeaderboard(tlRes.data);
+      }
+
+      // When admin views All departments, also fetch per-dept winners
+      if (isAdmin && !effectiveDept) {
+        const [rndRes, devRes] = await Promise.all([
+          getBestPerformers('R&D'),
+          getBestPerformers('Development')
+        ]);
+        const depts = [];
+        if (rndRes.data.bestEmployee || rndRes.data.bestTL) depts.push({ dept: 'R&D', ...rndRes.data });
+        if (devRes.data.bestEmployee || devRes.data.bestTL) depts.push({ dept: 'Development', ...devRes.data });
+        setAllDeptBest(depts);
+      } else {
+        setAllDeptBest([]);
       }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
@@ -93,13 +109,47 @@ const Leaderboard = () => {
       )}
 
       {/* Best Performers Banner */}
-      {(bestPerformers.bestEmployee || bestPerformers.bestTL) && (
+      {/* Admin "All" view: show each dept's winners separately */}
+      {isAdmin && !effectiveDept && allDeptBest.length > 0 ? (
+        <div className="space-y-3 mb-6 sm:mb-8">
+          {allDeptBest.map(({ dept, bestEmployee, bestTL }) => (
+            <div key={dept} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {bestEmployee && (
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
+                  <div className="text-3xl shrink-0">🏅</div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                      Best Employee · {dept}
+                    </p>
+                    <p className="text-base font-bold text-gray-800 mt-0.5 truncate">{bestEmployee.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{bestEmployee.points} pts</p>
+                  </div>
+                </div>
+              )}
+              {bestTL && (
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 flex items-center gap-3">
+                  <div className="text-3xl shrink-0">👑</div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">
+                      Best TL · {dept}
+                    </p>
+                    <p className="text-base font-bold text-gray-800 mt-0.5 truncate">{bestTL.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{bestTL.department}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (bestPerformers.bestEmployee || bestPerformers.bestTL) ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 sm:mb-8">
           {bestPerformers.bestEmployee && (
             <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-lg p-4 sm:p-5 flex items-center gap-4">
               <div className="text-3xl sm:text-4xl shrink-0">🏅</div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Best Employee of the Month</p>
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                  Best Employee of the Month{effectiveDept ? ` · ${effectiveDept}` : ''}
+                </p>
                 <p className="text-base sm:text-lg font-bold text-gray-800 mt-1 truncate">{bestPerformers.bestEmployee.name}</p>
                 <p className="text-sm text-gray-600 truncate">{bestPerformers.bestEmployee.department} · {bestPerformers.bestEmployee.points} pts</p>
               </div>
@@ -109,14 +159,16 @@ const Leaderboard = () => {
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 sm:p-5 flex items-center gap-4">
               <div className="text-3xl sm:text-4xl shrink-0">👑</div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Best TL of the Month</p>
+                <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">
+                  Best TL of the Month{effectiveDept ? ` · ${effectiveDept}` : ''}
+                </p>
                 <p className="text-base sm:text-lg font-bold text-gray-800 mt-1 truncate">{bestPerformers.bestTL.name}</p>
                 <p className="text-sm text-gray-600 truncate">{bestPerformers.bestTL.department}</p>
               </div>
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Progress Card — only for employees */}
       {user?.role === 'Employee' && (

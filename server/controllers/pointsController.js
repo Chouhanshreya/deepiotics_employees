@@ -135,3 +135,46 @@ exports.getCurrentMonthPoints = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// ---------------------------------------------------------------------------
+// GET /api/points/month-top?month=M&year=Y&department=X
+// Returns the top Employee and top TL by MonthlyPoints for a specific month.
+// Optional ?department= restricts to that department.
+// Used by Monthly History winner cards.
+// ---------------------------------------------------------------------------
+exports.getMonthTopScorers = async (req, res) => {
+  try {
+    const now   = new Date();
+    const month = req.query.month ? parseInt(req.query.month, 10) : now.getMonth() + 1;
+    const year  = req.query.year  ? parseInt(req.query.year,  10) : now.getFullYear();
+    const dept  = req.query.department || null;
+
+    const userFilter = { role: { $in: ['Employee', 'TL'] } };
+    if (dept) userFilter.department = dept;
+
+    const users  = await User.find(userFilter).select('_id role name department points');
+    const empIds = users.filter(u => u.role === 'Employee').map(u => u._id);
+    const tlIds  = users.filter(u => u.role === 'TL').map(u => u._id);
+
+    const [topEmpDoc, topTLDoc] = await Promise.all([
+      empIds.length ? MonthlyPoints.findOne({ month, year, employeeId: { $in: empIds } }).sort({ points: -1 }) : null,
+      tlIds.length  ? MonthlyPoints.findOne({ month, year, employeeId: { $in: tlIds  } }).sort({ points: -1 }) : null,
+    ]);
+
+    const starPerformer = topEmpDoc
+      ? await User.findById(topEmpDoc.employeeId).select('name department role')
+      : null;
+    const bestTL = topTLDoc
+      ? await User.findById(topTLDoc.employeeId).select('name department role')
+      : null;
+
+    return res.json({
+      month, year,
+      starPerformer: starPerformer ? { ...starPerformer.toObject(), monthPoints: topEmpDoc.points } : null,
+      bestTL:        bestTL        ? { ...bestTL.toObject(),        monthPoints: topTLDoc.points  } : null,
+    });
+  } catch (error) {
+    console.error('getMonthTopScorers error:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

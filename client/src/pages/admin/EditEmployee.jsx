@@ -7,7 +7,7 @@ const EditEmployee = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const [teamLeads, setTeamLeads] = useState([]);
+  const [allTeamLeads, setAllTeamLeads] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,6 +18,11 @@ const EditEmployee = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  // Filter TLs to only those in the selected department
+  const filteredTeamLeads = formData.department
+    ? allTeamLeads.filter(tl => tl.department === formData.department)
+    : allTeamLeads;
 
   useEffect(() => {
     fetchEmployee();
@@ -48,15 +53,20 @@ const EditEmployee = () => {
   const fetchTeamLeads = async () => {
     try {
       const response = await getAllUsers();
-      const tls = response.data.filter(u => u.role === 'TL');
-      setTeamLeads(tls);
+      setAllTeamLeads(response.data.filter(u => u.role === 'TL'));
     } catch (error) {
       console.error('Error fetching team leads:', error);
     }
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // When department changes, reset teamLead
+    if (name === 'department') {
+      setFormData(prev => ({ ...prev, department: value, teamLead: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     setError('');
   };
 
@@ -166,13 +176,27 @@ const EditEmployee = () => {
                 name="teamLead"
                 value={formData.teamLead}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={!formData.department}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-400"
               >
-                <option value="">No Team Lead</option>
-                {teamLeads.map(tl => (
-                  <option key={tl._id} value={tl._id}>{tl.name}</option>
+                <option value="">
+                  {!formData.department
+                    ? 'Select a department first'
+                    : filteredTeamLeads.length === 0
+                    ? `No TLs in ${formData.department} yet`
+                    : 'No Team Lead'}
+                </option>
+                {filteredTeamLeads.map(tl => (
+                  <option key={tl._id} value={tl._id}>
+                    {tl.name} ({tl.department})
+                  </option>
                 ))}
               </select>
+              {formData.department && filteredTeamLeads.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ No Team Leads found in {formData.department}.
+                </p>
+              )}
             </div>
           )}
 

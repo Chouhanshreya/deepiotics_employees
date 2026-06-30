@@ -3,6 +3,7 @@ const PointHistory = require('../models/PointHistory');
 const MonthlyArchive = require('../models/MonthlyArchive');
 const MonthlyPoints = require('../models/MonthlyPoints');
 const Ranking = require('../models/Ranking');
+const BestPerformer = require('../models/BestPerformer');
 
 // @desc    Get TL leaderboard (TL ranked by their team's total points)
 // @route   GET /api/admin/leaderboard/tls?department=R%26D
@@ -45,28 +46,37 @@ exports.getTLLeaderboard = async (req, res) => {
 
 // @desc    Declare Best Employee of the Month
 // @route   POST /api/admin/best-employee
+// @body    { userId, department?, type? }  type: 'manual'(default) | 'auto'
 // @access  Private (Admin)
 exports.declareBestEmployee = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, department, type = 'manual' } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ message: 'Please provide userId' });
-    }
+    if (!userId) return res.status(400).json({ message: 'Please provide userId' });
 
     const user = await User.findById(userId);
-    if (!user || user.role !== 'Employee') {
+    if (!user || (user.role !== 'Employee' && user.role !== 'TL')) {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    // Clear previous best employee flag
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+    const dept  = department || user.department;
+
+    // Upsert — separate record per (dept + role + type + month + year)
+    await BestPerformer.findOneAndUpdate(
+      { department: dept, role: 'Employee', type, month, year },
+      { employeeId: user._id, department: dept, role: 'Employee', type, month, year, declaredBy: req.user._id },
+      { upsert: true, new: true }
+    );
+
+    // Keep legacy flag in sync
     await User.updateMany({ isBestEmployee: true }, { isBestEmployee: false });
+    await User.findByIdAndUpdate(user._id, { isBestEmployee: true });
 
-    // Set new best employee
-    user.isBestEmployee = true;
-    await user.save();
-
-    res.json({ message: `${user.name} declared as Best Employee of the Month!`, user });
+    const updatedUser = await User.findById(user._id).select('-password');
+    res.json({ message: `${user.name} declared as Best Employee of the Month!`, user: updatedUser });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -74,72 +84,84 @@ exports.declareBestEmployee = async (req, res) => {
 
 // @desc    Declare Best TL of the Month
 // @route   POST /api/admin/best-tl
+// @body    { userId, department?, type? }  type: 'manual'(default) | 'auto'
 // @access  Private (Admin)
 exports.declareBestTL = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, department, type = 'manual' } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ message: 'Please provide userId' });
-    }
+    if (!userId) return res.status(400).json({ message: 'Please provide userId' });
 
     const user = await User.findById(userId);
     if (!user || user.role !== 'TL') {
-      return res.status(404).json({ message: 'TL not found' });
+      return res.status(404).json({ message: 'Team Lead not found. Make sure you selected a TL.' });
     }
 
-    // Clear previous best TL flag
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+    const dept  = department || user.department;
+
+    // Upsert — separate record per (dept + role + type + month + year)
+    await BestPerformer.findOneAndUpdate(
+      { department: dept, role: 'TL', type, month, year },
+      { employeeId: user._id, department: dept, role: 'TL', type, month, year, declaredBy: req.user._id },
+      { upsert: true, new: true }
+    );
+
+    // Keep legacy flag in sync
     await User.updateMany({ isBestTL: true }, { isBestTL: false });
+    await User.findByIdAndUpdate(user._id, { isBestTL: true });
 
-    // Set new best TL
-    user.isBestTL = true;
-    await user.save();
-
-    res.json({ message: `${user.name} declared as Best TL of the Month!`, user });
+    const updatedUser = await User.findById(user._id).select('-password');
+    res.json({ message: `${user.name} declared as Best TL of the Month!`, user: updatedUser });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Get current best performers (optionally filtered by department)
+// @desc    Get current best performers
 // @route   GET /api/admin/best-performers?department=R%26D
 // @access  Private
 exports.getBestPerformers = async (req, res) => {
   try {
-    // If a department filter is provided, compute live best performer for that dept
-    if (req.query.department) {
-      const dept = req.query.department;
-      const now   = new Date();
-      const month = now.getMonth() + 1;
-      const year  = now.getFullYear();
+    const now   = new Date();
+    const month = now.getMonth() + 1;
+    const year  = now.getFullYear();
+    const dept  = req.query.department || null;
 
-      const deptEmpUsers = await User.find({ role: 'Employee', department: dept }).select('_id');
-      const deptTLUsers  = await User.find({ role: 'TL',      department: dept }).select('_id');
-      const empIds = deptEmpUsers.map(u => u._id);
-      const tlIds  = deptTLUsers.map(u => u._id);
+    if (dept) {
+      // Return BOTH auto and manual declared winners for this dept+month
+      const [autoEmp, autoTL, manualEmp, manualTL] = await Promise.all([
+        BestPerformer.findOne({ department: dept, role: 'Employee', type: 'auto',   month, year }).populate('employeeId', '-password'),
+        BestPerformer.findOne({ department: dept, role: 'TL',       type: 'auto',   month, year }).populate('employeeId', '-password'),
+        BestPerformer.findOne({ department: dept, role: 'Employee', type: 'manual', month, year }).populate('employeeId', '-password'),
+        BestPerformer.findOne({ department: dept, role: 'TL',       type: 'manual', month, year }).populate('employeeId', '-password'),
+      ]);
 
-      const topEmpDoc = empIds.length
-        ? await MonthlyPoints.findOne({ month, year, employeeId: { $in: empIds }, points: { $gt: 0 } }).sort({ points: -1 })
-        : null;
-      const topTLDoc = tlIds.length
-        ? await MonthlyPoints.findOne({ month, year, employeeId: { $in: tlIds }, points: { $gt: 0 } }).sort({ points: -1 })
-        : null;
-
-      const bestEmployee = topEmpDoc
-        ? await User.findById(topEmpDoc.employeeId).select('-password')
-        : null;
-      const bestTL = topTLDoc
-        ? await User.findById(topTLDoc.employeeId).select('-password')
-        : null;
-
-      return res.json({ bestEmployee, bestTL, department: dept, live: true });
+      return res.json({
+        // For banner display: prefer manual if set, else auto
+        bestEmployee: manualEmp?.employeeId || autoEmp?.employeeId || null,
+        bestTL:       manualTL?.employeeId  || autoTL?.employeeId  || null,
+        // Separate fields for Settings display
+        autoEmployee:   autoEmp?.employeeId   || null,
+        autoTL:         autoTL?.employeeId    || null,
+        manualEmployee: manualEmp?.employeeId || null,
+        manualTL:       manualTL?.employeeId  || null,
+        department: dept
+      });
     }
 
-    // No filter — return global flags (manual declarations)
-    const bestEmployee = await User.findOne({ isBestEmployee: true }).select('-password');
-    const bestTL = await User.findOne({ isBestTL: true }).select('-password');
+    // No dept — latest BestPerformer across all depts this month
+    const [latestEmpRecord, latestTLRecord] = await Promise.all([
+      BestPerformer.findOne({ role: 'Employee', month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
+      BestPerformer.findOne({ role: 'TL',       month, year }).sort({ updatedAt: -1 }).populate('employeeId', '-password'),
+    ]);
 
-    res.json({ bestEmployee, bestTL });
+    const bestEmployee = latestEmpRecord?.employeeId || await User.findOne({ isBestEmployee: true }).select('-password');
+    const bestTL       = latestTLRecord?.employeeId  || await User.findOne({ isBestTL: true }).select('-password');
+
+    return res.json({ bestEmployee, bestTL });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

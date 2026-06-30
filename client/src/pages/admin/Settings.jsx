@@ -57,10 +57,13 @@ const Settings = () => {
     await Promise.all(DEPARTMENTS.map(async (dept) => {
       try {
         const [liveRes, bestRes] = await Promise.all([
-          getLiveRankings(dept),
-          getBestPerformers(dept)
+          getLiveRankings(dept),   // live top scorer preview
+          getBestPerformers(dept)  // { autoEmployee, autoTL, manualEmployee, manualTL, bestEmployee, bestTL }
         ]);
-        results[dept] = { live: liveRes.data, manual: bestRes.data };
+        results[dept] = {
+          live: liveRes.data,
+          best: bestRes.data   // has both auto and manual
+        };
       } catch (e) {
         console.error(`Failed to load dept best for ${dept}`, e);
       }
@@ -76,13 +79,12 @@ const Settings = () => {
         getArchives()
       ]);
       const allUsers = usersRes.data;
-      // Always load ALL employees and TLs — the per-dept cards need everyone
       setEmployees(allUsers.filter(u => u.role === 'Employee'));
       setTLs(allUsers.filter(u => u.role === 'TL'));
       setBestPerformers(bestRes.data);
       setArchives(archivesRes.data);
-      if (bestRes.data.bestEmployee) setSelectedBestEmployee(bestRes.data.bestEmployee._id);
-      if (bestRes.data.bestTL) setSelectedBestTL(bestRes.data.bestTL._id);
+      // Don't pre-select dropdowns — admin must explicitly choose
+      // to avoid accidental re-declarations
     } catch (error) {
       console.error('Error fetching settings data:', error);
     } finally {
@@ -92,16 +94,20 @@ const Settings = () => {
 
   const showMsg = (type, text) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 4000);
+    setTimeout(() => setMessage(null), 5000);
   };
 
   const handleDeclareBestEmployee = async () => {
-    if (!selectedBestEmployee) return;
+    if (!selectedBestEmployee) {
+      showMsg('error', 'Please select an employee first');
+      return;
+    }
     setDeclaring('employee');
     try {
       const res = await declareBestEmployee(selectedBestEmployee);
       setBestPerformers(prev => ({ ...prev, bestEmployee: res.data.user }));
       showMsg('success', res.data.message);
+      fetchData();
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare best employee');
     } finally {
@@ -110,12 +116,16 @@ const Settings = () => {
   };
 
   const handleDeclareBestTL = async () => {
-    if (!selectedBestTL) return;
+    if (!selectedBestTL) {
+      showMsg('error', 'Please select a team lead first');
+      return;
+    }
     setDeclaring('tl');
     try {
       const res = await declareBestTL(selectedBestTL);
       setBestPerformers(prev => ({ ...prev, bestTL: res.data.user }));
       showMsg('success', res.data.message);
+      fetchData();
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare best TL');
     } finally {
@@ -125,12 +135,16 @@ const Settings = () => {
 
   const handleDeclareDeptBestEmployee = async (dept) => {
     const userId = deptSelections[dept]?.emp;
-    if (!userId) return;
+    if (!userId) {
+      showMsg('error', `Please select an employee for ${dept} first`);
+      return;
+    }
     setDeclaring(`emp-${dept}`);
     try {
-      const res = await declareBestEmployee(userId);
+      const res = await declareBestEmployee(userId, dept);
       showMsg('success', `${dept}: ${res.data.message}`);
       fetchAllDeptBest();
+      fetchData();
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare');
     } finally {
@@ -140,12 +154,16 @@ const Settings = () => {
 
   const handleDeclareDeptBestTL = async (dept) => {
     const userId = deptSelections[dept]?.tl;
-    if (!userId) return;
+    if (!userId) {
+      showMsg('error', `Please select a TL for ${dept} first`);
+      return;
+    }
     setDeclaring(`tl-${dept}`);
     try {
-      const res = await declareBestTL(userId);
+      const res = await declareBestTL(userId, dept);
       showMsg('success', `${dept}: ${res.data.message}`);
       fetchAllDeptBest();
+      fetchData();
     } catch (error) {
       showMsg('error', error.response?.data?.message || 'Failed to declare');
     } finally {
@@ -157,9 +175,10 @@ const Settings = () => {
     setDeclaring(`auto-${dept}`);
     try {
       const live = deptBest[dept]?.live;
-      if (live?.starPerformer) await declareBestEmployee(live.starPerformer._id);
-      if (live?.bestTL) await declareBestTL(live.bestTL._id);
-      showMsg('success', `Auto-calculated best performers for ${dept} declared!`);
+      // Auto-Calculate always passes type: 'auto'
+      if (live?.starPerformer) await declareBestEmployee(live.starPerformer._id, dept, 'auto');
+      if (live?.bestTL)        await declareBestTL(live.bestTL._id, dept, 'auto');
+      showMsg('success', `${dept}: Best performers auto-declared!`);
       fetchAllDeptBest();
       fetchData();
     } catch (error) {
@@ -245,12 +264,15 @@ const Settings = () => {
     <div className="p-4 sm:p-6 max-w-4xl mx-auto w-full">
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">⚙️ Admin Settings</h1>
 
-      {/* Notification */}
+      {/* Fixed toast notification — always visible */}
       {message && (
-        <div className={`mb-6 flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
-          ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl text-sm font-semibold max-w-sm
+          ${message.type === 'success'
+            ? 'bg-green-600 text-white'
+            : 'bg-red-600 text-white'}`}>
           {message.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
-          {message.text}
+          <span>{message.text}</span>
+          <button onClick={() => setMessage(null)} className="ml-2 opacity-70 hover:opacity-100 text-lg leading-none">×</button>
         </div>
       )}
 
@@ -317,7 +339,7 @@ const Settings = () => {
                       <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-center gap-2">
                         <span>🏅</span>
                         <div>
-                          <p className="text-xs text-amber-600 font-semibold">Auto: Best Employee</p>
+                          <p className="text-xs text-amber-600 font-semibold">This Month's Top Employee</p>
                           <p className="text-sm font-bold text-gray-700">{liveData.starPerformer.name}</p>
                           <p className="text-xs text-gray-400">{liveData.starPerformer.monthPoints} pts this month</p>
                         </div>
@@ -327,9 +349,59 @@ const Settings = () => {
                       <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 flex items-center gap-2">
                         <span>👑</span>
                         <div>
-                          <p className="text-xs text-purple-600 font-semibold">Auto: Best TL</p>
+                          <p className="text-xs text-purple-600 font-semibold">This Month's Top TL</p>
                           <p className="text-sm font-bold text-gray-700">{liveData.bestTL.name}</p>
                           <p className="text-xs text-gray-400">{liveData.bestTL.monthPoints} pts this month</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Auto-calculated declared winners */}
+                {(deptBest[dept]?.best?.autoEmployee || deptBest[dept]?.best?.autoTL) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    {deptBest[dept].best.autoEmployee && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+                        <span>🤖</span>
+                        <div>
+                          <p className="text-xs text-blue-600 font-semibold">Auto Best Employee</p>
+                          <p className="text-sm font-bold text-gray-800">{deptBest[dept].best.autoEmployee.name}</p>
+                          <p className="text-xs text-gray-400">{deptBest[dept].best.autoEmployee.department}</p>
+                        </div>
+                      </div>
+                    )}
+                    {deptBest[dept].best.autoTL && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+                        <span>🤖</span>
+                        <div>
+                          <p className="text-xs text-blue-600 font-semibold">Auto Best TL</p>
+                          <p className="text-sm font-bold text-gray-800">{deptBest[dept].best.autoTL.name}</p>
+                          <p className="text-xs text-gray-400">{deptBest[dept].best.autoTL.department}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Manually declared winners */}
+                {(deptBest[dept]?.best?.manualEmployee || deptBest[dept]?.best?.manualTL) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    {deptBest[dept].best.manualEmployee && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
+                        <span>✅</span>
+                        <div>
+                          <p className="text-xs text-green-700 font-semibold">Manually Declared Best Employee</p>
+                          <p className="text-sm font-bold text-gray-800">{deptBest[dept].best.manualEmployee.name}</p>
+                          <p className="text-xs text-gray-400">{deptBest[dept].best.manualEmployee.department}</p>
+                        </div>
+                      </div>
+                    )}
+                    {deptBest[dept].best.manualTL && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
+                        <span>✅</span>
+                        <div>
+                          <p className="text-xs text-green-700 font-semibold">Manually Declared Best TL</p>
+                          <p className="text-sm font-bold text-gray-800">{deptBest[dept].best.manualTL.name}</p>
+                          <p className="text-xs text-gray-400">{deptBest[dept].best.manualTL.department}</p>
                         </div>
                       </div>
                     )}
